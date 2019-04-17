@@ -9,6 +9,8 @@ path = 'validation/dev.wa.nonullalign'
 # reading training data
 training_en = open('./training/hansards.36.2.e').read().splitlines()
 training_fr = open('./training/hansards.36.2.f').read().splitlines()
+training_en = training_en[:1000]
+training_fr = training_fr[:1000]
 # tokenize
 vocab_tr_en = set()
 vocab_tr_en.add('NULLINDICATOR')
@@ -41,7 +43,7 @@ theta = dict()
 for w_fr in vocab_tr_fr:
     theta[w_fr] = dict()
     for w_en in vocab_tr_en:
-        theta[w_fr][w_en] = Decimal(1 / len(vocab_tr_fr))
+        theta[w_fr][w_en] = 1 / len(vocab_tr_fr)
 
 # perform Expectation Maximization for IBM model 1
 for iteration in range(iterations):
@@ -51,25 +53,25 @@ for iteration in range(iterations):
     for w_fr in vocab_tr_fr:
         count_p[w_fr] = dict()
         for w_en in vocab_tr_en:
-            count_p[w_fr][w_en] = Decimal(0)
+            count_p[w_fr][w_en] = 0
     count_w = dict()
     for w_en in vocab_tr_en:
-        count_w[w_en] = Decimal(0)
+        count_w[w_en] = 0
     # E-Step
     for s_index in range(len(training_en)):
         for w_fr in training_fr[s_index]:
             # normalisation term
-            Z = Decimal(0)
+            Z = 0
             for w_en in training_en[s_index]:
-                Z += Decimal(theta[w_fr][w_en])
+                Z += theta[w_fr][w_en]
             for w_en in training_en[s_index]:
-                c = Decimal(theta[w_fr][w_en] / Z)
-                count_p[w_fr][w_en] += Decimal(c)
-                count_w[w_en] += Decimal(c)
+                c = theta[w_fr][w_en] / Z
+                count_p[w_fr][w_en] += c
+                count_w[w_en] += c
     for w_fr in count_p:
         for w_en in count_p[w_fr]:
             # M-Step
-            theta[w_fr][w_en] = Decimal(count_p[w_fr][w_en] / count_w[w_en])
+            theta[w_fr][w_en] = count_p[w_fr][w_en] / count_w[w_en]
             assert theta[w_fr][w_en] <= 1.
     predictions = []
     for s_index in range(len(validation_en)):
@@ -77,11 +79,19 @@ for iteration in range(iterations):
         for i_fr, w_fr in enumerate(validation_fr[s_index]):
             best_p = 0
             best_j = 0
+            potential = []
             for i_en, w_en in enumerate(validation_en[s_index]):
-                if theta[w_fr][w_en] > best_p:
+                if w_fr in theta and w_en in theta[w_fr] and theta[w_fr][w_en] > best_p:
                     best_p = theta[w_fr][w_en]
                     best_j = i_en
-            align.add((best_j, i_fr+1))
+                    potential = []
+                    potential.append(best_j)
+                if w_fr in theta and w_en in theta[w_fr] and abs(theta[w_fr][w_en] - best_p) < 0.1:
+                    potential.append(i_en)
+            for candidate in potential:
+                align.add((candidate, i_fr+1))
+        if s_index == 1:
+            print(align)
         predictions.append(align)
     gold_sets = read_naacl_alignments(path)
     metric = aer.AERSufficientStatistics()
