@@ -37,13 +37,24 @@ for i in range(len(validation_fr)):
 iterations = 10
 
 # initialize theta
-theta = dict.fromkeys(vocab_tr_fr, dict.fromkeys(vocab_tr_en, Decimal(1/len(vocab_tr_fr))))
+theta = dict()
+for w_fr in vocab_tr_fr:
+    theta[w_fr] = dict()
+    for w_en in vocab_tr_en:
+        theta[w_fr][w_en] = Decimal(1 / len(vocab_tr_fr))
 
 # perform Expectation Maximization for IBM model 1
 for iteration in range(iterations):
+    print('iteration', iteration)
     # intialize counts
-    count_p = dict.fromkeys(vocab_tr_fr, dict.fromkeys(vocab_tr_en, Decimal(0)))
-    count_w = dict.fromkeys(vocab_tr_en, Decimal(0))
+    count_p = dict()
+    for w_fr in vocab_tr_fr:
+        count_p[w_fr] = dict()
+        for w_en in vocab_tr_en:
+            count_p[w_fr][w_en] = Decimal(0)
+    count_w = dict()
+    for w_en in vocab_tr_en:
+        count_w[w_en] = Decimal(0)
     # E-Step
     for s_index in range(len(training_en)):
         for w_fr in training_fr[s_index]:
@@ -55,25 +66,20 @@ for iteration in range(iterations):
                 c = Decimal(theta[w_fr][w_en] / Z)
                 count_p[w_fr][w_en] += Decimal(c)
                 count_w[w_en] += Decimal(c)
-    # print(len(theta), len(count_p), len(count_w))
-    for w_fr in theta.keys():
-        for w_en in theta[w_fr]:
+    for w_fr in count_p:
+        for w_en in count_p[w_fr]:
             # M-Step
             theta[w_fr][w_en] = Decimal(count_p[w_fr][w_en] / count_w[w_en])
-            # print('count_w[w_en]:', count_w[w_en])
-            # print('count_p[w_fr][w_en]:', count_p[w_fr][w_en])
-            # print('theta[w_fr][w_en]:', theta[w_fr][w_en])
-            # assert theta[w_fr][w_en] <= 1.
+            assert theta[w_fr][w_en] <= 1.
     predictions = []
-    print('2')
     for s_index in range(len(validation_en)):
         align = set()
         for i_fr, w_fr in enumerate(validation_fr[s_index]):
             best_p = 0
             best_j = 0
             for i_en, w_en in enumerate(validation_en[s_index]):
-                if theta[w_en][w_fr] > best_p:
-                    best_p = theta[w_en][w_fr]
+                if theta[w_fr][w_en] > best_p:
+                    best_p = theta[w_fr][w_en]
                     best_j = i_en
             align.add((best_j, i_fr+1))
         predictions.append(align)

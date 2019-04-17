@@ -1,12 +1,11 @@
 import os
  
 #Read File to pairs
-fp_en = open('./training/hansards.36.2.e','r')
-fp_fr = open('./training/hansards.36.2.f','r')
+fp_en = open('./validation/dev.e','r')
+fp_fr = open('./validation/dev.f','r')
 iters = 1
 pairDic = {}
- 
-#生成原始序对字典
+
 countPair = 0
 for line_fr,line_en in zip(fp_fr,fp_en):
     f = line_fr.split()
@@ -19,15 +18,13 @@ for line_fr,line_en in zip(fp_fr,fp_en):
 fp_en.close()
 fp_fr.close()
  
- 
-#先将序对字典一次性去重
+
 lst = list(set(pairDic.values()))
 #print "lst=",lst
 NewpairDic = {}
 i = 0
 foreign,english = [],[]
 for _tuple in lst:
-    #生成新的序对字典
     NewpairDic[i] = _tuple
     i += 1
 #print "pairs=",NewpairDic
@@ -40,8 +37,8 @@ print("t0=",t)
  
 K = 0
 while K<=2: #while not converged
-    fp_en = open('data.e','r')
-    fp_fr = open('data.f','r')
+    fp_en = open('./validation/dev.e','r')
+    fp_fr = open('./validation/dev.f','r')
     count,total = {},{}
     for key in NewpairDic.values():
         count[key] = 0
