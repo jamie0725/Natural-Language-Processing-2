@@ -9,8 +9,8 @@ path = 'validation/dev.wa.nonullalign'
 # reading training data
 training_en = open('./training/hansards.36.2.e').read().splitlines()
 training_fr = open('./training/hansards.36.2.f').read().splitlines()
-training_en = training_en[:1000]
-training_fr = training_fr[:1000]
+training_en = training_en[:5000]
+training_fr = training_fr[:5000]
 # tokenize
 vocab_tr_en = set()
 vocab_tr_en.add('NULLINDICATOR')
@@ -81,17 +81,17 @@ for iteration in range(iterations):
             best_j = 0
             potential = []
             for i_en, w_en in enumerate(validation_en[s_index]):
+                if i_en == 0:
+                    continue
                 if w_fr in theta and w_en in theta[w_fr] and theta[w_fr][w_en] > best_p:
                     best_p = theta[w_fr][w_en]
                     best_j = i_en
                     potential = []
                     potential.append(best_j)
-                if w_fr in theta and w_en in theta[w_fr] and abs(theta[w_fr][w_en] - best_p) < 0.1:
+                if w_fr in theta and w_en in theta[w_fr] and abs(theta[w_fr][w_en] - best_p) < 0.2:
                     potential.append(i_en)
             for candidate in potential:
                 align.add((candidate, i_fr+1))
-        if s_index == 1:
-            print(align)
         predictions.append(align)
     gold_sets = read_naacl_alignments(path)
     metric = aer.AERSufficientStatistics()
