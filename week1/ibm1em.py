@@ -4,13 +4,14 @@ from aer import read_naacl_alignments
 import aer
 import numpy as np
 from decimal import *
+from collections import *
 
 path = 'validation/dev.wa.nonullalign'
 # reading training data
 training_en = open('./training/hansards.36.2.e').read().splitlines()
 training_fr = open('./training/hansards.36.2.f').read().splitlines()
-training_en = training_en[:5000]
-training_fr = training_fr[:5000]
+# training_en = training_en[:5000]
+# training_fr = training_fr[:5000]
 # tokenize
 vocab_tr_en = set()
 vocab_tr_en.add('NULLINDICATOR')
@@ -39,24 +40,14 @@ for i in range(len(validation_fr)):
 iterations = 10
 
 # initialize theta
-theta = dict()
-for w_fr in vocab_tr_fr:
-    theta[w_fr] = dict()
-    for w_en in vocab_tr_en:
-        theta[w_fr][w_en] = 1 / len(vocab_tr_fr)
+theta = defaultdict(lambda: defaultdict(lambda: 1/len(vocab_tr_fr)))
 
 # perform Expectation Maximization for IBM model 1
 for iteration in range(iterations):
     print('iteration', iteration)
     # intialize counts
-    count_p = dict()
-    for w_fr in vocab_tr_fr:
-        count_p[w_fr] = dict()
-        for w_en in vocab_tr_en:
-            count_p[w_fr][w_en] = 0
-    count_w = dict()
-    for w_en in vocab_tr_en:
-        count_w[w_en] = 0
+    count_p = defaultdict(lambda: defaultdict(lambda: 0))
+    count_w = defaultdict(lambda: 0)
     # E-Step
     for s_index in range(len(training_en)):
         for w_fr in training_fr[s_index]:
@@ -88,8 +79,8 @@ for iteration in range(iterations):
                     best_j = i_en
                     potential = []
                     potential.append(best_j)
-                if w_fr in theta and w_en in theta[w_fr] and abs(theta[w_fr][w_en] - best_p) < 0.2:
-                    potential.append(i_en)
+                # if w_fr in theta and w_en in theta[w_fr] and abs(theta[w_fr][w_en] - best_p) < 0.2:
+                #     potential.append(i_en)
             for candidate in potential:
                 align.add((candidate, i_fr+1))
         predictions.append(align)
