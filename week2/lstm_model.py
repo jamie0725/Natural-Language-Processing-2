@@ -18,7 +18,7 @@ class LSTMLM(nn.Module):
                              num_layers=lstm_num_layers, 
                              bias=True,
                              dropout=dropout,
-                             batch_first = True)
+                             batch_first=True)
         self.linear = nn.Linear(lstm_num_hidden, vocabulary_size)
 
         self.to(device)

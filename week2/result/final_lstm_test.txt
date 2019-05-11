@@ -1,0 +1,1 @@
+Learning Rate = 0.002, Train Step = 100000, Dropout = 0.0, LSTM Layers = 2, Hidden Size = 128, Test Perplexity = 327.21

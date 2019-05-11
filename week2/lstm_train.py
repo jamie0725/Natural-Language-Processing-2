@@ -47,7 +47,7 @@ def prepare_example(example, vocab):
 def get_examples(data, shuffle=True, **kwargs):
   """Shuffle data set and return 1 example at a time (until nothing left)"""
   if shuffle:
-    print("Shuffling training data")
+    print("Shuffling training data...")
     random.shuffle(data)  # shuffle training data each epoch
   for example in data:
     yield example
@@ -57,7 +57,7 @@ def compute_perplexity(prediction, target):
   perplexity = 0
   for i in range(prediction.shape[0]):
     for j in range(prediction.shape[1]):
-      perplexity -= np.log(prediction[i][target[i][j]])
+      perplexity -= torch.log(prediction[i][j][int(target[i][j])])
   return perplexity
 
 def train(config):
@@ -78,10 +78,11 @@ def train(config):
 
   # Store some measures
   iteration = list()
+  tmp_loss = list()
   train_loss = list()
-  eval_perp = list()
+  val_perp = list()
   iter_i = 0
-  best_perp = 0
+  best_perp = 1e6
 
   while True:  # when we run out of examples, shuffle and continue
     for train_sen in get_examples(train_data, batch_size=1):
@@ -98,6 +99,7 @@ def train(config):
       pred = model(inputs)
       pred = pred.permute(0, 2, 1)
       loss = criterion(pred, targets)
+      tmp_loss.append(loss.item())
       loss.backward()
       torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
       optimizer.step()
@@ -107,6 +109,8 @@ def train(config):
       examples_per_second = 1 / float(t2-t1)
 
       if iter_i % config.eval_every == 0:
+        avg_loss = sum(tmp_loss) / len(tmp_loss)
+        tmp_loss = list()
         model.eval()
         perp = list()
         length = list()
@@ -116,25 +120,25 @@ def train(config):
           # get the output from the neural network for input x
           with torch.no_grad():
             val_pred = model(val_input)
-          tmp_per = compute_perplexity(val_pred, val_target)
+          tmp_per = float(compute_perplexity(val_pred, val_target))
           perp.append(tmp_per)
           length.append(val_target.shape[1])
 
         perplexity = np.exp(sum(perp) / sum(length))
 
-        if perplexity > best_perp:
+        if perplexity < best_perp:
           best_perp = perplexity
-          torch.save(model.state_dict(), "./models/lstm.pt")
+          torch.save(model.state_dict(), "./models/lstm_best.pt")
 
         print("[{}] Train Step {:04d}/{:04d}, Examples/Sec = {:.2f}, "
-              "Evaluation Perplexity = {:.2f}, Training Loss = {:.3f}".format(
+              "Validation Perplexity = {:.2f}, Training Loss = {:.3f}".format(
                 datetime.now().strftime("%Y-%m-%d %H:%M"), iter_i,
                 config.train_steps, examples_per_second,
-                perplexity, loss
+                perplexity, avg_loss
         ))
         iteration.append(iter_i)
-        eval_perp.append(perplexity)
-        train_loss.append(loss)
+        val_perp.append(perplexity)
+        train_loss.append(avg_loss)
 
       if iter_i == config.train_steps:
         break
@@ -142,27 +146,41 @@ def train(config):
     if iter_i == config.train_steps:
       break
   print('Done training!')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
   print('Testing...')
-  model.load_state_dict(torch.load('./models/lstm.pt'))
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  model.load_state_dict(torch.load('./models/lstm_best.pt'))
   perp = list()
   length = list()
   for test_sen in test_data:
     test_input, test_target = prepare_example(test_sen, vocab)
     with torch.no_grad():
       test_pred = model(test_input)
-    tmp_per = compute_perplexity(test_pred, test_target)
+    tmp_per = float(compute_perplexity(test_pred, test_target))
     perp.append(tmp_per)
     length.append(test_target.shape[1])
   test_perplexity = np.exp(sum(perp) / sum(length))
-  print('Test Perplexity = {:.2f}'.format(test_perplexity))
+  print('Test Perplexity on the best model is: {:.2f}'.format(test_perplexity))
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  with open('./result/lstm_test.txt', 'a') as file:
+    file.write('Learning Rate = {}, Train Step = {}, '
+               'Dropout = {}, LSTM Layers = {}, '
+               'Hidden Size = {}, Test Perplexity = {:.2f}\n'.format(
+                config.learning_rate, config.train_steps,
+                1-config.dropout_keep_prob, config.lstm_num_layers,
+                config.lstm_num_hidden, test_perplexity))
+    file.close()
   fig, axs = plt.subplots(1, 2, figsize=(10,5))
-  axs[0].plot(iteration, eval_perp)
+  axs[0].plot(iteration, val_perp)
   axs[0].set_xlabel('Iteration')
-  axs[0].set_ylabel('Evaluation Perplexity')
+  axs[0].set_ylabel('Validation Perplexity')
   axs[1].plot(iteration, train_loss)
   axs[1].set_xlabel('Iteration')
   axs[1].set_ylabel('Training Loss')
   fig.tight_layout()
+  fig.savefig('./result/lstm_plot.eps', format='eps')
+  print('Figure is saved.')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
   plt.show()
 
 def print_flags():
@@ -183,11 +201,10 @@ if __name__ == "__main__":
     parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
 
     # Training params
-    parser.add_argument('--batch_size', type=int, default=64, help='Number of examples to process in a batch')
     parser.add_argument('--learning_rate', type=float, default=2e-3, help='Learning rate')
     parser.add_argument('--dropout_keep_prob', type=float, default=1.0, help='Dropout keep probability')
 
-    parser.add_argument('--train_steps', type=int, default=15000, help='Number of training steps')
+    parser.add_argument('--train_steps', type=int, default=100000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=5.0, help='--')
 
     # Misc params
@@ -196,5 +213,4 @@ if __name__ == "__main__":
     config = parser.parse_args()
 
     # Train the model
-    print('Begin training...')
     train(config)
