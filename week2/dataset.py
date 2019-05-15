@@ -30,7 +30,7 @@ class Vocabulary():
     
   def build(self, min_freq=0):
     self.add_token("<unk>")  # reserve 0 for <unk> (unknown words)
-    # self.add_token("<pad>")  # reserve 1 for <pad> 
+    self.add_token("<pad>")  # reserve 1 for <pad> 
     
     tok_freq = list(self.freqs.items())
     tok_freq.sort(key=lambda x: x[1], reverse=True)

@@ -10,7 +10,8 @@ class LSTMLM(nn.Module):
 
         # embedding
         self.embedding = nn.Embedding(num_embeddings=vocabulary_size,
-                                      embedding_dim=lstm_num_hidden)
+                                      embedding_dim=lstm_num_hidden,
+                                      padding_idx=1)
 
         # layers
         self.model = nn.LSTM(input_size=lstm_num_hidden, 
@@ -24,8 +25,8 @@ class LSTMLM(nn.Module):
         self.to(device)
 
 
-    def forward(self, x):
+    def forward(self, x, h, c):
         embed = self.embedding(x)
-        model, _ = self.model(embed)
+        model, (h_n, c_n) = self.model(embed, (h, c))
         out = self.linear(model)
-        return out
+        return out, h_n, c_n
