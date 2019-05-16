@@ -1,12 +1,12 @@
-Learning Rate = 0.002, Train Step = 13000, Dropout = 0.0, LSTM Layers = 2, Hidden Size = 128, Test Perplexity = 203.87, Test Accuracy = 0.24494077834179356
-Greedy: SOS The company said it will be `` a very very very '' '' for the company 's largest shareholder . EOS
-Sampling 1: SOS Throughout this charge , perhaps hedging strategies of new land if he are n't not dead -- or even snags . EOS
-Sampling 2: SOS The NIH includes $ 550 million will also immediately plant throughout a slight rise issuing $ 1,000 , unchanged . EOS
-Sampling 3: SOS But maybe a firm around them big crises . EOS
-Sampling 4: SOS Mexico 's 500-Stock counsel in Ford Motor Co. is being used down by Salomon Brothers Inc. , a joint Alto concern , a study , discouraging directors at Maryland Entertainment Inc . EOS
-Sampling 5: SOS He added that 's do n't replace tension both to follow him facing their resemble 47.3 of these senators , would have undermined a clothes to the offices of the preliminary Court . EOS
-Sampling 6: SOS Reuben Harris Hahn , said in an lawsuit between speculation , he Jones , the counsel 's warning , sin can providing banks on the breakfast with a perpetual high-end wall at the right-wing free-for-all . EOS
-Sampling 7: SOS IRS Life said it agreed to pay interest in pretax net before Aug. 30 . EOS
-Sampling 8: SOS As any one option Healthcare , somebody can be able for the line-item-veto nurse in Frankfurt because they wonder she could mince recovery from connection with a bad language when Nissan sought the radar to which on the new prime award contends that there is were further from the unit of treasury and Toyota . EOS
-Sampling 9: SOS Treasury suit , which was working reflecting temporary wires along FPL use in stop restrictions involving financial district abroad . EOS
-Sampling 10: SOS `` We admitted it itself because the industry makes the psyllium Club in renewing investors and they have seen to prevent for Saab . EOS
+Learning Rate = 0.002, Train Step = 13000, Dropout = 0.0, LSTM Layers = 2, Hidden Size = 128, Test Perplexity = 200.36, Test Accuracy = 0.24570219966159051
+Greedy: SOS The company said the company 's earnings rose to $ 4 million from $ 1.02 billion . EOS
+Sampling 1: SOS Separately , Manville said it completed the final meeting as the U.S. were troubled over next year , rising spending from the federal claims of CBS , which had studied Bank One authorization . EOS
+Sampling 2: SOS Why these estimates have already gone for inches . EOS
+Sampling 3: SOS The Treasury issue is like passed by now between the talks at overall business . EOS
+Sampling 4: SOS That 's this is the Senate . '' EOS
+Sampling 5: SOS They 're being concerned with taxes in the statement to keep some wrongdoing ; courts burned prices . EOS
+Sampling 6: SOS Laserscope also calls a special quarterly dividend in the second quarter , as much as $ 5 to $ save a share , or previous a profit of a year earlier , with other net income of $ 285 million , from $ 122.7 million . EOS
+Sampling 7: SOS Some important concerns that our cards is buying way . EOS
+Sampling 8: SOS These features spewing raises in time that last morning to improve access land should . EOS
+Sampling 9: SOS I must step to steal the Fed . EOS
+Sampling 10: SOS The new scene became likely to buy China to overseas stocks to buy 8 % . EOS
