@@ -130,9 +130,6 @@ def train(config):
       optimizer.zero_grad()
 
       inputs, targets = prepare_minibatch(train_batch, vocab)
-
-      print(inputs[0])
-      print(targets[0])
       
       h_0 = torch.zeros(config.lstm_num_layers, inputs.shape[0], config.lstm_num_hidden).to(device)
       c_0 = torch.zeros(config.lstm_num_layers, inputs.shape[0], config.lstm_num_hidden).to(device)
@@ -228,15 +225,18 @@ def train(config):
     file.write('Learning Rate = {}, Train Step = {}, '
                'Dropout = {}, LSTM Layers = {}, '
                'Hidden Size = {}, Test Perplexity = {:.2f}, '
-               'Test Accuracy = {}'.format(
+               'Test Accuracy = {}\n'.format(
                 config.learning_rate, config.train_steps,
                 1-config.dropout_keep_prob, config.lstm_num_layers,
                 config.lstm_num_hidden, test_perplexity, test_accuracy))
     file.close()
   
+  print('Sampling...')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+
   generate = list()
   # Greedy decoding
-  greedy = [vocab.w2i.get('SOS')]
+  greedy = vocab.w2i.get('SOS')
   eos = vocab.w2i.get('EOS')
   greedy = torch.LongTensor([greedy]).unsqueeze(0).to(device)
 
@@ -254,11 +254,11 @@ def train(config):
     greedy = torch.cat((greedy, pred), dim=1)
   
   greedy = greedy.squeeze()
-  g_sentence = [vocab.i2w(idx) for idx in greedy.tolist()]
+  g_sentence = [vocab.i2w[idx] for idx in greedy.tolist()]
   generate.append(g_sentence)
 
   for i in range(config.sample_size):
-    sample = [vocab.w2i.get('SOS')]
+    sample = vocab.w2i.get('SOS')
     sample = torch.LongTensor([sample]).unsqueeze(0).to(device)
     h_0 = torch.zeros(config.lstm_num_layers, sample.shape[0], config.lstm_num_hidden).to(device)
     c_0 = torch.zeros(config.lstm_num_layers, sample.shape[0], config.lstm_num_hidden).to(device)
@@ -277,16 +277,19 @@ def train(config):
       sample = torch.cat((sample, pred), dim=1)
   
     sample = sample.squeeze()
-    s_sentence = [vocab.i2w(idx) for idx in sample.tolist()]
+    s_sentence = [vocab.i2w[idx] for idx in sample.tolist()]
     generate.append(s_sentence)
 
   with open('./result/lstm_test.txt', 'a') as file:
     for idx, sen in enumerate(generate):
       if idx == 0:
-        file.write('Greedy: {}'.format(' '.join(sen)))
+        file.write('Greedy: {}\n'.format(' '.join(sen)))
       else:
-        file.write('Sampling {}: {}'.format(idx ,' '.join(sen)))
+        file.write('Sampling {}: {}\n'.format(idx ,' '.join(sen)))
     file.close()
+
+  print('Done sampling!')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 
   t_loss = plt.figure(figsize = (6, 3))
   plt.plot(iteration, train_loss)
@@ -328,7 +331,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=2e-3, help='Learning rate')
     parser.add_argument('--dropout_keep_prob', type=float, default=1.0, help='Dropout keep probability')
 
-    parser.add_argument('--train_steps', type=int, default=30000, help='Number of training steps')
+    parser.add_argument('--train_steps', type=int, default=13000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=5.0, help='--')
 
     # Misc params

@@ -1,1 +1,12 @@
-Learning Rate = 0.002, Train Step = 100000, Dropout = 0.0, LSTM Layers = 2, Hidden Size = 128, Test Perplexity = 327.21
+Learning Rate = 0.002, Train Step = 13000, Dropout = 0.0, LSTM Layers = 2, Hidden Size = 128, Test Perplexity = 203.87, Test Accuracy = 0.24494077834179356
+Greedy: SOS The company said it will be `` a very very very '' '' for the company 's largest shareholder . EOS
+Sampling 1: SOS Throughout this charge , perhaps hedging strategies of new land if he are n't not dead -- or even snags . EOS
+Sampling 2: SOS The NIH includes $ 550 million will also immediately plant throughout a slight rise issuing $ 1,000 , unchanged . EOS
+Sampling 3: SOS But maybe a firm around them big crises . EOS
+Sampling 4: SOS Mexico 's 500-Stock counsel in Ford Motor Co. is being used down by Salomon Brothers Inc. , a joint Alto concern , a study , discouraging directors at Maryland Entertainment Inc . EOS
+Sampling 5: SOS He added that 's do n't replace tension both to follow him facing their resemble 47.3 of these senators , would have undermined a clothes to the offices of the preliminary Court . EOS
+Sampling 6: SOS Reuben Harris Hahn , said in an lawsuit between speculation , he Jones , the counsel 's warning , sin can providing banks on the breakfast with a perpetual high-end wall at the right-wing free-for-all . EOS
+Sampling 7: SOS IRS Life said it agreed to pay interest in pretax net before Aug. 30 . EOS
+Sampling 8: SOS As any one option Healthcare , somebody can be able for the line-item-veto nurse in Frankfurt because they wonder she could mince recovery from connection with a bad language when Nissan sought the radar to which on the new prime award contends that there is were further from the unit of treasury and Toyota . EOS
+Sampling 9: SOS Treasury suit , which was working reflecting temporary wires along FPL use in stop restrictions involving financial district abroad . EOS
+Sampling 10: SOS `` We admitted it itself because the industry makes the psyllium Club in renewing investors and they have seen to prevent for Saab . EOS
