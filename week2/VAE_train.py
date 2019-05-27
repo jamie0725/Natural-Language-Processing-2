@@ -11,8 +11,8 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from VAE_model import LSTMLM
-from VAE_model import VAE
+from vae_model import LSTMLM
+from vae_model import VAE
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
