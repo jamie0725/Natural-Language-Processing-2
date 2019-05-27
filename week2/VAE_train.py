@@ -106,12 +106,19 @@ def compute_perplexity(prediction, target): #the negative log-likelihood term in
     for j in range(prediction.shape[1]): #sentence length, ie 1 word/1 timestamp for each loop
       perplexity -= torch.log(prediction[i][j][int(target[i][j])])
   return float(perplexity)
-
+'''
 def compute_match(prediction, target):
   match = 0
   pred = prediction.argmax(dim=2)
   match += (pred == target).sum().item()
   return int(match)
+'''
+def compute_match_vae(prediction, target):
+  match = 0
+  pred = prediction.argmax(dim=1)
+  match += (pred == target).sum().item()
+  return int(match)
+
 
 def train(config):
   # Print all configs to confirm parameter settings
@@ -124,7 +131,7 @@ def train(config):
                   lstm_num_hidden=config.lstm_num_hidden,
                   lstm_num_layers=config.lstm_num_layers,
                   lstm_num_direction=config.lstm_num_direction,
-                  num_latent=32,
+                  num_latent=config.num_latent,
                   device=device)
 
 
@@ -132,7 +139,7 @@ def train(config):
   model.to(device)
 
   # Setup the loss and optimizer
-  criterion = nn.CrossEntropyLoss(ignore_index=1)
+  criterion = nn.CrossEntropyLoss(ignore_index=1, reduction='sum')
   optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
   # Store some measures
@@ -171,7 +178,7 @@ def train(config):
 
       print('At iter', iter_i, ', rc_loss=', reconstruction_loss.item(), ' KL_loss = ', KL_loss.item())
 
-      total_loss= reconstruction_loss+ KL_loss
+      total_loss= (reconstruction_loss+ KL_loss)/config.batch_size
       tmp_loss.append(total_loss.item())
       total_loss.backward()
       torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
@@ -179,14 +186,16 @@ def train(config):
 
 
       if iter_i % config.eval_every == 0:
-        print('Evaluating with validation ...')
+        print('Evaluating with validation at iteration ', iter_i, '...')
         model.eval()
-        with torch.no_grad():
-          
-          ppl_total = 0.0
-          validation_lengths=list()
 
-          #computing ppl
+        ppl_total = 0.0
+        validation_lengths=list()
+        match=list()
+
+
+        with torch.no_grad():
+          #computing ppl, match, and accuracy
           for validation_th, val_sen in enumerate(val_data): #too large too slow lets stick with first 1000/1700 first
             val_input, val_target = prepare_example_numpy(val_sen, vocab)
             
@@ -206,7 +215,7 @@ def train(config):
             validation_lengths.append(val_input_k_times.size(1))
 
             #last argument means [len(sentences) for k times]
-            decoder_output, _= model.forward_no_grad(val_input_k_times, h_0, c_0, [val_input_k_times.size(1) for k in range(config.importance_sampling_size)])
+            decoder_output, _= model(val_input_k_times, h_0, c_0, [val_input_k_times.size(1) for k in range(config.importance_sampling_size)])
             
 
             #decoder_output.size() = (k, val_input.size(1)(ie sent_length),vocabsize)
@@ -223,105 +232,59 @@ def train(config):
             ppl_per_example = 0.0
             for j in range(prediction.shape[1]): #sentence length, ie 1 word/1 timestamp for each loop
               ppl_per_example -= torch.log(prediction_mean[j][int(val_target[0][j])])#0 as the target is the same for the k samples
-              #print('torch.log(prediction[j][int(val_target[0][j])]) at ', j, ' = ', -torch.log(prediction_mean[j][int(val_target[0][j])])) = around -10
-            #print('ppl_per_example',ppl_per_example) around 300- 600
 
-            #ppl_per_example = -torch.log(ppl_per_example/config.importance_sampling_size)
             ppl_total+= ppl_per_example
 
-            '''
-            decoder_output = decoder_output.permute(0, 2, 1)
-            reconstruction_loss = criterion(decoder_output, val_target_k_times)
-
-            #not needed, as CrossEntropyLoss is averaged over batch elements by default 
-            #nll_per_example = reconstruction_loss/config.importance_sampling_size
-
-            #add the nll_per_example to the overall ppl across whole validation set 
-            ppl += reconstruction_loss
-            '''
-
-            if validation_th%200==0:
+            if validation_th%300==0:
               print('    ppl_per_example at the ', validation_th, ' th validation case = ', ppl_per_example)
 
-            '''
-            for k in range(config.importance_sampling_size):
-
-              decoder_output, _= model([val_input for x in range], h_0, c_0, [val_input.size(1)])
-              decoder_output = decoder_output.permute(0, 2, 1)
-
-              #decoder_output.size() = (k, vocabsize, val_input.size(1)(ie sent_length))
-              #val_target.size() = (k, val_input.size(1))
-              reconstruction_loss = criterion(decoder_output, val_target)
-
-              nll.append(reconstruction_loss.item())
-            '''
-
-          ppl_total = torch.exp(ppl_total/sum(validation_lengths))
-          print('ppl_total', ppl_total)
+            tmp_match = compute_match_vae(prediction_mean, val_target)
+            match.append(tmp_match)
 
 
+        ppl_total = torch.exp(ppl_total/sum(validation_lengths))
+        print('ppl_total for iteration ', iter_i, ' =  ', ppl_total)
 
+        accuracy = sum(match) / sum(validation_lengths)
+        print('accuracy for iteration ', iter_i, ' =  ', accuracy)
 
+        avg_loss = sum(tmp_loss) / len(tmp_loss) #loss of the previous iterations (up the after last eval)
+        tmp_loss = list() #reinitialize to zero
 
+        if ppl_total < best_perp:
+          best_perp = ppl_total
+          torch.save(model.state_dict(), "./models/vae_best.pt")
 
-      '''
-      # Just for time measurement
-      t2 = time.time()
-      examples_per_second = 1 / float(t2-t1)
+          #Instead of rewriting the same file, we can have new ones:
+          #model_saved_name = datetime.now().strftime("%Y-%m-%d_%H%M") + './models/vae_best.pt'
+          #torch.save(model.state_dict(), model_saved_name)
 
-      if iter_i % config.eval_every == 0:
-        avg_loss = sum(tmp_loss) / len(tmp_loss)
-        tmp_loss = list()
-        
-        model.eval()
-        perp = list()
-        match = list()
-        length = list()
-        
-        for val_sen in val_data:
-          val_input, val_target = prepare_example(val_sen, vocab)
-          h_0 = torch.zeros(config.lstm_num_layers, val_input.shape[0], config.lstm_num_hidden).to(device)
-          c_0 = torch.zeros(config.lstm_num_layers, val_input.shape[0], config.lstm_num_hidden).to(device)
-
-          with torch.no_grad():
-            val_pred, _, _ = model(val_input, h_0, c_0)
-          tmp_per = compute_perplexity(val_pred, val_target)
-          tmp_match = compute_match(val_pred, val_target)
-          perp.append(tmp_per)
-          match.append(tmp_match)
-          length.append(val_target.shape[1])
-
-        perplexity = np.exp(sum(perp) / sum(length))
-        accuracy = sum(match) / sum(length)
-
-        if perplexity < best_perp:
-          best_perp = perplexity
-          torch.save(model.state_dict(), "./models/lstm_best.pt")
-
-        print("[{}] Train Step {:04d}/{:04d}, Examples/Sec = {:.2f}, "
-              "Validation Perplexity = {:.2f}, Training Loss = {:.3f}, "
+        print("[{}] Train Step {:04d}/{:04d}, "
+              "Validation Perplexity = {:.4f}, Training Loss = {:.4f}, "
               "Validation Accuracy = {:.4f}".format(
                 datetime.now().strftime("%Y-%m-%d %H:%M"), iter_i,
-                config.train_steps, examples_per_second,
-                perplexity, avg_loss, accuracy
+                config.train_steps,
+                ppl_total, avg_loss, accuracy
         ))
         iteration.append(iter_i)
-        val_perp.append(perplexity)
+        val_perp.append(ppl_total)
         train_loss.append(avg_loss)
         val_acc.append(accuracy)
 
       if iter_i == config.train_steps:
         break
-      '''
     
     if iter_i == config.train_steps:
       break
   
   print('Done training!')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+
+  '''
   print('Testing...')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
   
+
   #model.load_state_dict(torch.load('./models/lstm_best.pt'))
   model.load_state_dict(torch.load('./models/final_lstm_best.pt', map_location=lambda storage, loc: storage))
   model.eval()
@@ -436,6 +399,8 @@ def train(config):
   v_acc.savefig('./result/lstm_validation_accuracy.eps', format='eps')
   print('Figures are saved.')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  '''
+  return 
 
 def print_flags():
   """
@@ -451,10 +416,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Model params
-    parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
+    parser.add_argument('--lstm_num_hidden', type=int, default=256, help='Number of hidden units in the LSTM')
     #parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_layers', type=int, default=1, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_direction', type=int, default=2, help='Number of LSTM direction, 2 for bidrectional')
+    parser.add_argument('--num_latent', type=int, default=64, help='latent size of the input')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size of the input')
 
     # Training params
@@ -465,7 +431,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_norm', type=float, default=5.0, help='--')
 
     # Misc params
-    parser.add_argument('--eval_every', type=int, default=5, help='How often to print and evaluate training progress')
+    parser.add_argument('--eval_every', type=int, default=100, help='How often to print and evaluate training progress')
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
 
     #size of k in z_{nk}, ie how many z to we want to average for ppl 
