@@ -190,6 +190,7 @@ def train(config):
         model.eval()
 
         ppl_total = 0.0
+        validation_elbo_loss = 0.0
         validation_lengths=list()
         match=list()
 
@@ -215,7 +216,7 @@ def train(config):
             validation_lengths.append(val_input_k_times.size(1))
 
             #last argument means [len(sentences) for k times]
-            decoder_output, _= model(val_input_k_times, h_0, c_0, [val_input_k_times.size(1) for k in range(config.importance_sampling_size)])
+            decoder_output, KL_loss_validation= model(val_input_k_times, h_0, c_0, [val_input_k_times.size(1) for k in range(config.importance_sampling_size)])
             
 
             #decoder_output.size() = (k, val_input.size(1)(ie sent_length),vocabsize)
@@ -242,6 +243,14 @@ def train(config):
             match.append(tmp_match)
 
 
+            #calculate validation elbo
+            decoder_output_validation = decoder_output.permute(0, 2, 1)
+            reconstruction_loss = criterion(decoder_output_validation, val_target_k_times)
+
+            validation_elbo_loss+= (reconstruction_loss+ KL_loss_validation)/config.importance_sampling_size
+
+
+
         ppl_total = torch.exp(ppl_total/sum(validation_lengths))
         print('ppl_total for iteration ', iter_i, ' =  ', ppl_total)
 
@@ -250,6 +259,8 @@ def train(config):
 
         avg_loss = sum(tmp_loss) / len(tmp_loss) #loss of the previous iterations (up the after last eval)
         tmp_loss = list() #reinitialize to zero
+        validation_elbo_loss = validation_elbo_loss/len(val_data)
+
 
         if ppl_total < best_perp:
           best_perp = ppl_total
@@ -260,11 +271,11 @@ def train(config):
           #torch.save(model.state_dict(), model_saved_name)
 
         print("[{}] Train Step {:04d}/{:04d}, "
-              "Validation Perplexity = {:.4f}, Training Loss = {:.4f}, "
+              "Validation Perplexity = {:.4f}, Validation Elbo loss ={:.4f}, Training Loss = {:.4f}, "
               "Validation Accuracy = {:.4f}".format(
                 datetime.now().strftime("%Y-%m-%d %H:%M"), iter_i,
                 config.train_steps,
-                ppl_total, avg_loss, accuracy
+                ppl_total, validation_elbo_loss, avg_loss, accuracy
         ))
         iteration.append(iter_i)
         val_perp.append(ppl_total)
@@ -435,7 +446,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
 
     #size of k in z_{nk}, ie how many z to we want to average for ppl 
-    parser.add_argument('--importance_sampling_size', type=int, default=2, help='Number of z sampled per validation example for importances sampling')
+    parser.add_argument('--importance_sampling_size', type=int, default=3, help='Number of z sampled per validation example for importances sampling')
 
     config = parser.parse_args()
 
