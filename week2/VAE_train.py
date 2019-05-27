@@ -37,17 +37,17 @@ print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 #print('vocab 0,1', vocab.i2w[0], vocab.i2w[1]) #0=unk, 1=pad, 4=SOS, 6=EOS
 #exit()
 
-def prepare_example(example, vocab):
+def prepare_example_numpy(example, vocab): #prepare_example keep it numpy for making batched copies in validation
   """
   Map tokens to their IDs for 1 example
   """
   # vocab returns 0 if the word is not there
   x = [vocab.w2i.get(t, 0) for t in example[:-1]]
-  x = torch.LongTensor([x])
-  x = x.to(device)
+  #x = torch.LongTensor([x])
+  #x = x.to(device)
   y = [vocab.w2i.get(t, 0) for t in example[1:]]
-  y = torch.LongTensor([y])
-  y = y.to(device)
+  #y = torch.LongTensor([y])
+  #y = y.to(device)
   return x, y
 
 def prepare_minibatch(mb, vocab):
@@ -166,7 +166,8 @@ def train(config):
 
       #the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output (batch, sent_length, vocab_classes)
       decoder_output = decoder_output.permute(0, 2, 1)
-      reconstruction_loss = criterion(decoder_output, targets) 
+      reconstruction_loss = criterion(decoder_output, targets)
+
 
       print('At iter', iter_i, ', rc_loss=', reconstruction_loss.item(), ' KL_loss = ', KL_loss.item())
 
@@ -175,6 +176,93 @@ def train(config):
       total_loss.backward()
       torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
       optimizer.step()
+
+
+      if iter_i % config.eval_every == 0:
+        print('Evaluating with validation ...')
+        model.eval()
+        with torch.no_grad():
+          
+          ppl_total = 0.0
+          validation_lengths=list()
+
+          #computing ppl
+          for validation_th, val_sen in enumerate(val_data): #too large too slow lets stick with first 1000/1700 first
+            val_input, val_target = prepare_example_numpy(val_sen, vocab)
+            
+
+            #zeros in dim = (num_layer*num_direction, batch=config.importance_sampling_size,  lstm_hidden_size)
+            h_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
+            c_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
+
+            
+            #we do it as normal model.forward, but as if a batch of size k, all of the same validation example 
+            #so that we will equivalently have k sampled z
+
+            val_input_k_times = torch.LongTensor([val_input for k in range(config.importance_sampling_size)]).to(device)
+            val_target_k_times = torch.LongTensor([val_target for k in range(config.importance_sampling_size)]).to(device)
+
+            #append the sent length of this particular validation example
+            validation_lengths.append(val_input_k_times.size(1))
+
+            #last argument means [len(sentences) for k times]
+            decoder_output, _= model.forward_no_grad(val_input_k_times, h_0, c_0, [val_input_k_times.size(1) for k in range(config.importance_sampling_size)])
+            
+
+            #decoder_output.size() = (k, val_input.size(1)(ie sent_length),vocabsize)
+            #prediction.size() = (k, sent_len, vocabsize)
+            #prediction_mean.size() = (sent_len, vocabsize), ie averaged over k samples (and squeezed)
+            prediction = nn.functional.softmax(decoder_output, dim=2)
+            prediction_mean = torch.mean(prediction, 0)
+
+
+            #val_target.size() = (k, val_input.size(1))
+            val_target = torch.LongTensor([val_target]).to(device)
+
+
+            ppl_per_example = 0.0
+            for j in range(prediction.shape[1]): #sentence length, ie 1 word/1 timestamp for each loop
+              ppl_per_example -= torch.log(prediction_mean[j][int(val_target[0][j])])#0 as the target is the same for the k samples
+              #print('torch.log(prediction[j][int(val_target[0][j])]) at ', j, ' = ', -torch.log(prediction_mean[j][int(val_target[0][j])])) = around -10
+            #print('ppl_per_example',ppl_per_example) around 300- 600
+
+            #ppl_per_example = -torch.log(ppl_per_example/config.importance_sampling_size)
+            ppl_total+= ppl_per_example
+
+            '''
+            decoder_output = decoder_output.permute(0, 2, 1)
+            reconstruction_loss = criterion(decoder_output, val_target_k_times)
+
+            #not needed, as CrossEntropyLoss is averaged over batch elements by default 
+            #nll_per_example = reconstruction_loss/config.importance_sampling_size
+
+            #add the nll_per_example to the overall ppl across whole validation set 
+            ppl += reconstruction_loss
+            '''
+
+            if validation_th%200==0:
+              print('    ppl_per_example at the ', validation_th, ' th validation case = ', ppl_per_example)
+
+            '''
+            for k in range(config.importance_sampling_size):
+
+              decoder_output, _= model([val_input for x in range], h_0, c_0, [val_input.size(1)])
+              decoder_output = decoder_output.permute(0, 2, 1)
+
+              #decoder_output.size() = (k, vocabsize, val_input.size(1)(ie sent_length))
+              #val_target.size() = (k, val_input.size(1))
+              reconstruction_loss = criterion(decoder_output, val_target)
+
+              nll.append(reconstruction_loss.item())
+            '''
+
+          ppl_total = torch.exp(ppl_total/sum(validation_lengths))
+          print('ppl_total', ppl_total)
+
+
+
+
+
 
       '''
       # Just for time measurement
@@ -377,8 +465,11 @@ if __name__ == "__main__":
     parser.add_argument('--max_norm', type=float, default=5.0, help='--')
 
     # Misc params
-    parser.add_argument('--eval_every', type=int, default=2, help='How often to print and evaluate training progress')
+    parser.add_argument('--eval_every', type=int, default=5, help='How often to print and evaluate training progress')
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
+
+    #size of k in z_{nk}, ie how many z to we want to average for ppl 
+    parser.add_argument('--importance_sampling_size', type=int, default=2, help='Number of z sampled per validation example for importances sampling')
 
     config = parser.parse_args()
 

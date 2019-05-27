@@ -229,4 +229,77 @@ class VAE(nn.Module):
 
         return decoder_output, KL_loss
 
+    #______________________________________________________________exactly the same but without grad
+    @torch.no_grad()
+    def forward_no_grad(self, x, h_0, c_0, lengths_in_batch):
+
+        #embed input 
+        embedded = self.embedding(x)
+
+        #remove the paddings for faster computation
+        packed_embedded = pack_padded_sequence(embedded, lengths=lengths_in_batch,batch_first=True, enforce_sorted=False)
+
+
+        #feed pad_removed input into encoder 
+        #h_N_packed, (h_t_packed, c_t_packed) = self.biLSTM_encoder(packed_embedded, (h_0, c_0))
+        _, (h_t_packed, _) = self.biLSTM_encoder(packed_embedded, (h_0, c_0))    
+
+        '''
+        In case this is needed in future: to convert h_N_unpacked(padding removed) back to h_N_unpacked(with padding - padded position has [0,...0] as h_i); dim of h_N_unpacked = batch * sent * (lstm_num_hidden * #direction * #layer)
+
+        h_N_unpacked, lengths_in_batch_just_the_same = pad_packed_sequence(h_N_packed, batch_first=True)
+        '''
+
+        #The h_t_packed has weird dim = (num_layer * num direction) * batch * lstm_hidden = 2 * batch * 128
+        #have to concat the 2 directions of 128 hidden states back to 256
+        #s.t. its dim now =  batch * 256
+        encoder_output = torch.cat((h_t_packed[0], h_t_packed[1]),dim=1)
+
+        #mean 
+        mu = self.mu(encoder_output)
+
+        #log variance
+        logvar= self.logvar(encoder_output)
+
+        #std
+        std= torch.exp(.5*logvar)
+
+        #introduce the epsilon randomness (actually default of requires grad is already false, anyway ...)
+        z = torch.randn((mu.shape), requires_grad=False).to(self.device)
+
+        #compute z
+        z = z*std + mu  
+
+        #compute the KL loss 
+        KL_loss = 0.5 * torch.sum(logvar.exp() + mu.pow(2) - 1 - logvar)
+
+        
+
+        #map the latent dimensions of z back to the lstm_num_hidden dimensions        
+        decoder_hidden_init = self.latent2decoder(z)
+
+        #unsqueeze is for adding one dim of 1 to fit the input constraint of LSTM:
+        #Inputs: input, (h_0, c_0); h_0 of shape (num_layers * num_directions, batch, hidden_size)
+        decoder_hidden_init = decoder_hidden_init.unsqueeze(0)
+
+        decoder_cell_init = torch.zeros(1, x.size(0), self.lstm_num_hidden).to(self.device)
+
+
+        #feed this new z to the LSTM decoder to get all the hidden states 
+        #Am I right to feeed z to initial hidden states (instead of cell states?)
+        h_N_packed, (_, _)  = self.LSTM_decoder(packed_embedded, (decoder_hidden_init, decoder_cell_init))
+
+        #h_N_unpacked contains hidden states output of all timesteps 
+        #unused return value is the the lengths_in_batch: h_N_unpacked, lengths_in_batch = pad_packed_sequence(h_N_packed, batch_first=True)
+        h_N_unpacked, _ = pad_packed_sequence(h_N_packed, batch_first=True)
+
+
+        #decoder output is the fully-connected layer from num_hidden to vocab size, 
+        #Then in train.py we will use nn.CrossEntropy as the softmax to calculate the loss from this decoder_ouput 
+        decoder_output = self.LSTM_output(h_N_unpacked)
+
+
+        return decoder_output, KL_loss
+
+
         
