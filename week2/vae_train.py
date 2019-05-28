@@ -150,12 +150,12 @@ def train(config):
 
 
   model.to(device)
-  
+
   
   # Setup the loss and optimizer
   criterion = nn.CrossEntropyLoss(ignore_index=1, reduction='sum')
   optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
-
+  
   # Store some measures
   iteration = list()
   tmp_loss = list()
@@ -292,7 +292,7 @@ def train(config):
 
             validation_elbo_loss+= (reconstruction_loss+ KL_loss_validation)/config.importance_sampling_size
 
-            nll_per_eval.append(ppl_total)
+            nll_per_eval.append(ppl_per_example)
 
 
 
@@ -454,29 +454,89 @@ def train(config):
                 config.lstm_num_hidden, ppl_total, validation_elbo_loss, nll,accuracy))
     file.close()
 
-
-
+  
 
   print('Sampling...')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 
-  model.load_state_dict(torch.load('./models/vae_best.pt'))
-  
+  #model.load_state_dict(torch.load('./models/vae_best_lisa.pt'))
+  model.load_state_dict(torch.load('./models/vae_best_lisa.pt', map_location=lambda storage, loc: storage))
+
   with torch.no_grad():
     sentences = model.sample( config.sample_size, vocab)
 
-  with open('./result/vae_test.txt', 'a') as file:
-    for idx, sen in enumerate(sentences):
-      if idx == 0:
-        file.write('Greedy: {}\n'.format(' '.join(sen)))
+  sentences_pruned_EOS=[[] for x in range(config.sample_size)]
+  for i in range(len(sentences)):
+    for j in range(len(sentences[i])):
+      if sentences[i][j]!='EOS':
+        sentences_pruned_EOS[i].append(sentences[i][j])
       else:
-        file.write('Sampling {}: {}\n'.format(idx ,' '.join(sen)))
+        break
+
+  with open('./result/vae_test_greedy_new.txt', 'a') as file:
+    for idx, sen in enumerate(sentences_pruned_EOS):
+      if idx == 0:
+        file.write('\n Greedy: \n')
+        file.write('Sampling \n{}: {}\n'.format(idx ,' '.join(sen)))
+      else:
+        file.write('Sampling \n{}: {}\n'.format(idx ,' '.join(sen)))
 
 
-
-
-  print('Done sampling!')
+  print('Interpolating...')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+
+  #interpolation
+  with torch.no_grad():
+    sentences = model.interpolation( vocab)
+
+  sentences_pruned_EOS=[[],[],[],[],[]]
+  for i in range(len(sentences)):
+    for j in range(len(sentences[i])):
+      if sentences[i][j]!='EOS':
+        sentences_pruned_EOS[i].append(sentences[i][j])
+      else:
+        break
+
+  with open('./result/vae_test_interpolate.txt', 'a') as file:
+      file.write('\n Interpolation: \n')
+      file.write('Sampling z1:\n {}\n'.format(' '.join(sentences_pruned_EOS[0])))
+      file.write('Sampling z2:\n {}\n'.format(' '.join(sentences_pruned_EOS[1])))
+      file.write('Sampling z1+z2/2:\n {}\n'.format(' '.join(sentences_pruned_EOS[2])))
+      file.write('Sampling z1*0.8+z2*0.2:\n {}\n'.format(' '.join(sentences_pruned_EOS[3])))
+      file.write('Sampling z1*0.2+z2*0.8:\n {}\n'.format(' '.join(sentences_pruned_EOS[4])))
+
+
+ 
+
+  print('Test case reconstruction')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  test_sen = test_data[101]
+  #print('test_sen', test_sen)
+  test_input, _ = prepare_example(test_sen, vocab)
+  #print('test_input',test_input)
+      
+  #zeros in dim = (num_layer*num_direction, batch=config.importance_sampling_size,  lstm_hidden_size)
+  h_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
+  c_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
+
+  #feed into models 
+  reconstructed_sentences = model.test_reconstruction(test_input, vocab)
+
+
+  sentences_pruned_EOS=[[] for x in range(10)]
+  for i in range(len(reconstructed_sentences)):
+    for j in range(len(reconstructed_sentences[i])):
+      if reconstructed_sentences[i][j]!='EOS':
+        sentences_pruned_EOS[i].append(reconstructed_sentences[i][j])
+      else:
+        break
+
+  with open('./result/vae_test_reconstruct.txt', 'a') as file:
+      file.write('\n The sentence to reconstruct:\n {}\n'.format(' '.join(test_sen[1:])))
+      for x in range(10):
+        file.write('Sample: {} \n {}\n'.format(x, ' '.join(sentences_pruned_EOS[x])))
+
+
 
   '''
   t_loss = plt.figure(figsize = (6, 4))
