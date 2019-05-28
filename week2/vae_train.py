@@ -148,6 +148,7 @@ def train(config):
   train_loss = list()
   val_perp = list()
   val_acc = list()
+  val_elbo = list()
   iter_i = 0
   best_perp = 1e6
 
@@ -281,6 +282,12 @@ def train(config):
         val_perp.append(ppl_total)
         train_loss.append(avg_loss)
         val_acc.append(accuracy)
+        val_elbo.append(validation_elbo_loss)
+
+        np.save('./np_saved_results/train_loss.npy', train_loss + ['till_iter_'+str(iter_i)])
+        np.save('./np_saved_results/val_perp.npy', val_perp+['till_iter_'+str(iter_i)])
+        np.save('./np_saved_results/val_acc.npy', val_acc+['till_iter_'+str(iter_i)])
+        np.save('./np_saved_results/val_elbo.npy', val_elbo+['till_iter_'+str(iter_i)])
 
       if iter_i == config.train_steps:
         break
@@ -292,12 +299,14 @@ def train(config):
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 
   '''
-  print('Testing...')
+  print('Sampling...')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
   
 
-  #model.load_state_dict(torch.load('./models/lstm_best.pt'))
-  model.load_state_dict(torch.load('./models/vae_best.pt', map_location=lambda storage, loc: storage))
+  # for gpu: model.load_state_dict(torch.load('./models/vae_best.pt'))
+  # for cpu: model.load_state_dict(torch.load('./models/vae_best.pt', map_location=lambda storage, loc: storage))
+  with torch.no_grad():
+    model.sample( config.sample_size, vocab)
   '''
 
 
