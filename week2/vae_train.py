@@ -271,7 +271,7 @@ def train(config):
           #torch.save(model.state_dict(), model_saved_name)
 
         print("[{}] Train Step {:04d}/{:04d}, "
-              "Validation Perplexity = {:.4f}, Validation Elbo loss ={:.4f}, Training Loss = {:.4f}, "
+              "Validation Perplexity = {:.4f}, Validation loss ={:.4f}, Training Loss = {:.4f}, "
               "Validation Accuracy = {:.4f}".format(
                 datetime.now().strftime("%Y-%m-%d %H:%M"), iter_i,
                 config.train_steps,
@@ -297,121 +297,11 @@ def train(config):
   
 
   #model.load_state_dict(torch.load('./models/lstm_best.pt'))
-  model.load_state_dict(torch.load('./models/final_lstm_best.pt', map_location=lambda storage, loc: storage))
-  model.eval()
-  perp = list()
-  match = list()
-  length = list()
-  
-  for test_sen in test_data:
-    test_input, test_target = prepare_example(test_sen, vocab)
-    h_0 = torch.zeros(config.lstm_num_layers, test_input.shape[0], config.lstm_num_hidden).to(device)
-    c_0 = torch.zeros(config.lstm_num_layers, test_input.shape[0], config.lstm_num_hidden).to(device)
-    with torch.no_grad():
-      test_pred, _, _ = model(test_input, h_0, c_0)
-    tmp_per = compute_perplexity(test_pred, test_target)
-    tmp_match = compute_match(test_pred, test_target)
-    perp.append(tmp_per)
-    match.append(tmp_match)
-    length.append(test_target.shape[1])
-  
-  test_perplexity = np.exp(sum(perp) / sum(length))
-  test_accuracy = sum(match) / sum(length)
-  
-  print('Test Perplexity on the best model is: {:.2f}'.format(test_perplexity))
-  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
-  with open('./result/lstm_test.txt', 'a') as file:
-    file.write('Learning Rate = {}, Train Step = {}, '
-               'Dropout = {}, LSTM Layers = {}, '
-               'Hidden Size = {}, Test Perplexity = {:.2f}, '
-               'Test Accuracy = {}\n'.format(
-                config.learning_rate, config.train_steps,
-                1-config.dropout_keep_prob, config.lstm_num_layers,
-                config.lstm_num_hidden, test_perplexity, test_accuracy))
-    file.close()
-  
-  print('Sampling...')
-  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
-
-  generate = list()
-  # Greedy decoding
-  greedy = vocab.w2i.get('SOS')
-  eos = vocab.w2i.get('EOS')
-  greedy = torch.LongTensor([greedy]).unsqueeze(0).to(device)
-
-  h_0 = torch.zeros(config.lstm_num_layers, greedy.shape[0], config.lstm_num_hidden).to(device)
-  c_0 = torch.zeros(config.lstm_num_layers, greedy.shape[0], config.lstm_num_hidden).to(device)
-
-  pred, h_n, c_n = model(greedy, h_0, c_0)
-
-  pred = pred.argmax(dim=2)
-  greedy = torch.cat((greedy, pred), dim=1)
-
-  while greedy[-1][-1].item() != eos:
-    pred, h_n, c_n = model(pred, h_n, c_n)
-    pred = pred.argmax(dim=2)
-    greedy = torch.cat((greedy, pred), dim=1)
-  
-  greedy = greedy.squeeze()
-  g_sentence = [vocab.i2w[idx] for idx in greedy.tolist()]
-  generate.append(g_sentence)
-
-  for i in range(config.sample_size):
-    sample = vocab.w2i.get('SOS')
-    sample = torch.LongTensor([sample]).unsqueeze(0).to(device)
-    h_0 = torch.zeros(config.lstm_num_layers, sample.shape[0], config.lstm_num_hidden).to(device)
-    c_0 = torch.zeros(config.lstm_num_layers, sample.shape[0], config.lstm_num_hidden).to(device)
-
-    pred, h_n, c_n = model(sample, h_0, c_0)
-    pred = nn.functional.softmax(pred, dim=2)
-    dist = torch.distributions.categorical.Categorical(pred)
-    pred = dist.sample()
-    sample = torch.cat((sample, pred), dim=1)
-
-    while sample[-1][-1].item() != eos:
-      pred, h_n, c_n = model(pred, h_n, c_n)
-      pred = nn.functional.softmax(pred, dim=2)
-      dist = torch.distributions.categorical.Categorical(pred)
-      pred = dist.sample()
-      sample = torch.cat((sample, pred), dim=1)
-  
-    sample = sample.squeeze()
-    s_sentence = [vocab.i2w[idx] for idx in sample.tolist()]
-    generate.append(s_sentence)
-
-  with open('./result/lstm_test.txt', 'a') as file:
-    for idx, sen in enumerate(generate):
-      if idx == 0:
-        file.write('Greedy: {}\n'.format(' '.join(sen)))
-      else:
-        file.write('Sampling {}: {}\n'.format(idx ,' '.join(sen)))
-    file.close()
-
-  print('Done sampling!')
-  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
-
-  t_loss = plt.figure(figsize = (6, 4))
-  plt.plot(iteration, train_loss)
-  plt.xlabel('Iteration')
-  plt.ylabel('Training Loss')
-  t_loss.tight_layout()
-  t_loss.savefig('./result/lstm_training_loss.eps', format='eps')
-  v_perp = plt.figure(figsize = (6, 4))
-  plt.plot(iteration, val_perp)
-  plt.xlabel('Iteration')
-  plt.ylabel('Validation Perplexity')
-  v_perp.tight_layout()
-  v_perp.savefig('./result/lstm_validation_perplexity.eps', format='eps')
-  v_acc = plt.figure(figsize = (6, 4))
-  plt.plot(iteration, val_acc)
-  plt.xlabel('Iteration')
-  plt.ylabel('Validation Accuracy')
-  v_acc.tight_layout()
-  v_acc.savefig('./result/lstm_validation_accuracy.eps', format='eps')
-  print('Figures are saved.')
-  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  model.load_state_dict(torch.load('./models/vae_best.pt', map_location=lambda storage, loc: storage))
   '''
-  return 
+
+
+  return 0
 
 def print_flags():
   """
@@ -446,7 +336,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
 
     #size of k in z_{nk}, ie how many z to we want to average for ppl 
-    parser.add_argument('--importance_sampling_size', type=int, default=3, help='Number of z sampled per validation example for importances sampling')
+    parser.add_argument('--importance_sampling_size', type=int, default=2, help='Number of z sampled per validation example for importances sampling')
 
     config = parser.parse_args()
 

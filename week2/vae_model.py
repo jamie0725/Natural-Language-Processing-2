@@ -98,54 +98,39 @@ class VAE(nn.Module):
         debugging log: just in case something goes wrong in the future, here's a list of things already checked
         #print('input(batch) size', x.size())
         #= batch * sent_len 
-
         #h_N, (h_t, c_t) = self.biLSTM_encoder(embedded, (h_0, c_0))
-
         #print('h_N', h_N.size()) equals all h-outputs of each timestamp 
         # = batch * sent_len * (lstm_num_hidden * #direction * #layer)
         # = batch * sent_len * (128*2)
-
         #print('h_t', h_t.size()) only the output of last timestamp t
         # = (#direction * #layer) * batch * lstm_num_hidden
-
-
         #checking that the last of h_N matches h_t
         #print('h_N 0th batch, last h, head', h_N[0, -1, 0:5])
         #print('h_t 0th batch, last h, head', h_t[:, 0, 0:5])
-
         #print('h_N', h_N.size())
         #print('h_N last ', torch.squeeze(h_N[:, -1, :]).size())
-
         #trying to pick the final feature h_t as the output of the biLSTM_encoder encoder
         #encoded = torch.squeeze(h_N[:, -1, :])
-
-
         #checking if pack_padded works
         #print('x', x)
         #print('lengths_in_batch',lengths_in_batch)
         #print('pack_padded_sequence(embedded)',pack_padded_sequence(embedded, lengths=lengths_in_batch,batch_first=True, enforce_sorted=False))
-
-
         #checking how to convert packed output from lstm to what we needed 
         #print('x.size()',x.size())
         #print('lengths_in_batch',lengths_in_batch)
         #print('h_N_packed.data.shape ', h_N_packed.data.shape)
-
         #checking unpacked output 
         #print('h_N_unpacked size', h_N_unpacked.size())
         #print('h_t_packed size', h_t_packed.size())
         #print('h_t_packed -1 ', h_t_packed[-1].size())
-
         #checking if encoder output works
         #encoder_output = torch.cat((h_t_packed[0], h_t_packed[1]),dim=1)
         #print('encoder_outputsize', encoder_output.size())
         #print('encoder_output', encoder_output)
-
         #checking dimensions of z     
         #print('z rand', z)
         #print('z rand size', z.size())
         #print('mu shape', mu.shape)
-
         #checking decode
         #print('z.size()',z.size())
         #print('z',z)
@@ -153,7 +138,6 @@ class VAE(nn.Module):
         #decoder_input = self.latent2decoder(z)
         #print('decoder_input.size()',decoder_input.size())
         #print('decoder_input',decoder_input)
-
         #checking the final output matches the desired output dim
         print('decoder_output size and batch max length, lens_in_batch',decoder_output.size(), x.size(1), lengths_in_batch)
         print('x',x)
@@ -174,7 +158,6 @@ class VAE(nn.Module):
 
         '''
         In case this is needed in future: to convert h_N_unpacked(padding removed) back to h_N_unpacked(with padding - padded position has [0,...0] as h_i); dim of h_N_unpacked = batch * sent * (lstm_num_hidden * #direction * #layer)
-
         h_N_unpacked, lengths_in_batch_just_the_same = pad_packed_sequence(h_N_packed, batch_first=True)
         '''
 
