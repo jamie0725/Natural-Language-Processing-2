@@ -50,7 +50,7 @@ class VAE(nn.Module):
                              bias=True,
                              dropout=dropout,
                              batch_first=True, 
-                             bidirectional=True).to(device)
+                             bidirectional=True)
         # embedding 
         self.embedding = nn.Embedding(num_embeddings=vocabulary_size,
                                       embedding_dim=lstm_num_hidden,
@@ -80,7 +80,7 @@ class VAE(nn.Module):
                              bias=True,
                              dropout=dropout,
                              batch_first=True, 
-                             bidirectional=False).to(device) # unidirectional
+                             bidirectional=False) # unidirectional
 
         self.LSTM_output = nn.Linear(lstm_num_hidden, vocabulary_size)
 
@@ -247,7 +247,7 @@ class VAE(nn.Module):
     @torch.no_grad()
     def sample(self, sample_size,vocab):
         z = torch.randn((sample_size, self.num_latent), requires_grad=False).to(self.device)
-        print('z size', z.size())
+        # print('z size', z.size())
 
         decoder_input = self.latent2decoder(z)
 
@@ -259,7 +259,7 @@ class VAE(nn.Module):
         decoder_cell_init = torch.zeros(1, sample_size, self.lstm_num_hidden).to(self.device)
 
         #create the sos inputs for size = (k, 1) then embed it to (k, 1, lstm_num_hidden)
-        sos_input = torch.LongTensor([ [4] for x in range(sample_size)])
+        sos_input = torch.LongTensor([ [4] for x in range(sample_size)]).to(self.device)
         embedded_sos_input = self.embedding(sos_input)
         '''
         for s in range(5): #mx sequence length 
