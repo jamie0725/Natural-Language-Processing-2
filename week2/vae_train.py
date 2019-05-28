@@ -50,7 +50,7 @@ def prepare_example_numpy(example, vocab): # prepare_example keep it numpy for m
   # y = y.to(device)
   return x, y
 
-def prepare_example(example, vocab): #prepare_example keep it numpy for making batched copies in validation
+def prepare_example(example, vocab): # prepare_example keep it numpy for making batched copies in validation
   """
   Map tokens to their IDs for 1 example
   """
@@ -145,7 +145,7 @@ def train(config):
                   lstm_num_layers=config.lstm_num_layers,
                   lstm_num_direction=config.lstm_num_direction,
                   num_latent=config.num_latent,
-                  device=device).to(device)
+                  device=device)
   
   # Setup the loss and optimizer
   criterion = nn.CrossEntropyLoss(ignore_index=1, reduction='sum')
@@ -255,7 +255,7 @@ def train(config):
             # decoder_output.size() = (k, batchsize=1, val_input.size(1)(ie sent_length), vocabsize)
             # the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output  to get (k, batchsize=1, vocab_classes, sent_length)
             # then we loop over k to get (1, vocab_classes, sent_len)
-            decoder_output_validation = decoder_output.permute(0, 1, 3,2)
+            decoder_output_validation = decoder_output.permute(0, 1, 3, 2)
 
             reconstruction_loss=0
 
@@ -368,7 +368,7 @@ def train(config):
       # decoder_output.size() = (k, batchsize=1, val_input.size(1)(ie sent_length), vocabsize)
       # the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output  to get (k, batchsize=1, vocab_classes, sent_length)
       # then we loop over k to get (1, vocab_classes, sent_len)
-      decoder_output_validation = decoder_output.permute(0, 1, 3,2)
+      decoder_output_validation = decoder_output.permute(0, 1, 3, 2)
 
       reconstruction_loss=0
 
@@ -473,7 +473,7 @@ if __name__ == "__main__":
     parser.add_argument('--lstm_num_layers', type=int, default=1, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_direction', type=int, default=2, help='Number of LSTM direction, 2 for bidrectional')
     parser.add_argument('--num_latent', type=int, default=64, help='latent size of the input')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size of the input')
+    parser.add_argument('--batch_size', type=int, default=20, help='Batch size of the input')
 
     # Training params
     parser.add_argument('--learning_rate', type=float, default=2e-3, help='Learning rate')
@@ -486,7 +486,7 @@ if __name__ == "__main__":
     parser.add_argument('--eval_every', type=int, default=100, help='How often to print and evaluate training progress')
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
 
-    #size of k in z_{nk}, ie how many z to we want to average for ppl 
+    # size of k in z_{nk}, ie how many z to we want to average for ppl 
     parser.add_argument('--importance_sampling_size', type=int, default=2, help='Number of z sampled per validation example for importances sampling')
 
     config = parser.parse_args()

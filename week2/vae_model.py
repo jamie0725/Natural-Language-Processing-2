@@ -61,10 +61,10 @@ class VAE(nn.Module):
 
 
         # mean
-        self.mu=nn.Linear(lstm_num_hidden*lstm_num_direction*lstm_num_layers, num_latent) # *2 as it's bidirectional 
+        self.mu = nn.Linear(lstm_num_hidden*lstm_num_direction*lstm_num_layers, num_latent) # *2 as it's bidirectional 
 
         # for variance
-        self.logvar=nn.Linear(lstm_num_hidden*lstm_num_direction*lstm_num_layers, num_latent) # *2 as it's bidirectional 
+        self.logvar = nn.Linear(lstm_num_hidden*lstm_num_direction*lstm_num_layers, num_latent) # *2 as it's bidirectional 
 
         # to do, add this in according to proj description 
         self.softplus = nn.Softplus()
