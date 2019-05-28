@@ -151,7 +151,7 @@ def train(config):
 
   model.to(device)
   
-
+  
   # Setup the loss and optimizer
   criterion = nn.CrossEntropyLoss(ignore_index=1, reduction='sum')
   optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
@@ -284,7 +284,7 @@ def train(config):
 
         if ppl_total < best_perp:
           best_perp = ppl_total
-          torch.save(model.state_dict(), "./models/vae_best.pt")
+          torch.save(model.state_dict(), "./models/vae_best_256_64.pt")
 
           #Instead of rewriting the same file, we can have new ones:
           #model_saved_name = datetime.now().strftime("%Y-%m-%d_%H%M") + './models/vae_best.pt'
@@ -323,12 +323,12 @@ def train(config):
   print('Sampling...')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
   
-
+  '''
   #model.load_state_dict(torch.load('./models/vae_best.pt'))
   model.load_state_dict(torch.load('./models/vae_best_120iter.pt', map_location=lambda storage, loc: storage))
   with torch.no_grad():
     model.sample( config.sample_size, vocab)
-
+  '''
 
 
   return 0
@@ -347,11 +347,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Model params
-    parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
+    parser.add_argument('--lstm_num_hidden', type=int, default=256, help='Number of hidden units in the LSTM')
     #parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_layers', type=int, default=1, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_direction', type=int, default=2, help='Number of LSTM direction, 2 for bidrectional')
-    parser.add_argument('--num_latent', type=int, default=32, help='latent size of the input')
+    parser.add_argument('--num_latent', type=int, default=64, help='latent size of the input')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size of the input')
 
     # Training params
@@ -362,7 +362,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_norm', type=float, default=5.0, help='--')
 
     # Misc params
-    parser.add_argument('--eval_every', type=int, default=1, help='How often to print and evaluate training progress')
+    parser.add_argument('--eval_every', type=int, default=100, help='How often to print and evaluate training progress')
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
 
     #size of k in z_{nk}, ie how many z to we want to average for ppl 

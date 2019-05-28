@@ -296,7 +296,7 @@ class VAE(nn.Module):
             next_input = self.embedding(next_word)
             print(next_word)
         '''
-        for s in range(5): #mx sequence length 
+        for s in range(20): #mx sequence length 
 
             #feed the first input to LSTM to get the next words
             #hidden_output of shape ( batch,seq_len=1, lstm_num_hidden)
@@ -308,10 +308,10 @@ class VAE(nn.Module):
             decoder_output=self.LSTM_output(hidden_output[:,-1:,:]) #get only the last hidden state
 
             prediction = nn.functional.softmax(decoder_output, dim=2)#size = (k, 1,vocab_size)
-            print('prediction', prediction)
+            #print('prediction', prediction)
 
             next_word = torch.argmax(prediction, dim=2) #k*1
-            print('next_word',next_word)
+            #print('next_word',next_word)
 
             if s==0:
                 prediction_greedy_max = next_word
