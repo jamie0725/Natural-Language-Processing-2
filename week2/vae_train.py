@@ -175,18 +175,13 @@ def train(config):
       decoder_output = decoder_output.permute(0, 2, 1)
       reconstruction_loss = criterion(decoder_output, targets)
 
-
-      print('At iter', iter_i, ', rc_loss=', reconstruction_loss.item(), ' KL_loss = ', KL_loss.item())
-
       total_loss= (reconstruction_loss+ KL_loss)/config.batch_size
       tmp_loss.append(total_loss.item())
       total_loss.backward()
       torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
       optimizer.step()
 
-
       if iter_i % config.eval_every == 0:
-        print('Evaluating with validation at iteration ', iter_i, '...')
         model.eval()
 
         ppl_total = 0.0
@@ -194,18 +189,15 @@ def train(config):
         validation_lengths=list()
         match=list()
 
-
         with torch.no_grad():
           #computing ppl, match, and accuracy
           for validation_th, val_sen in enumerate(val_data): #too large too slow lets stick with first 1000/1700 first
             val_input, val_target = prepare_example_numpy(val_sen, vocab)
             
-
             #zeros in dim = (num_layer*num_direction, batch=config.importance_sampling_size,  lstm_hidden_size)
             h_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
             c_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
 
-            
             #we do it as normal model.forward, but as if a batch of size k, all of the same validation example 
             #so that we will equivalently have k sampled z
 
@@ -218,17 +210,14 @@ def train(config):
             #last argument means [len(sentences) for k times]
             decoder_output, KL_loss_validation= model(val_input_k_times, h_0, c_0, [val_input_k_times.size(1) for k in range(config.importance_sampling_size)])
             
-
             #decoder_output.size() = (k, val_input.size(1)(ie sent_length),vocabsize)
             #prediction.size() = (k, sent_len, vocabsize)
             #prediction_mean.size() = (sent_len, vocabsize), ie averaged over k samples (and squeezed)
             prediction = nn.functional.softmax(decoder_output, dim=2)
             prediction_mean = torch.mean(prediction, 0)
 
-
             #val_target.size() = (k, val_input.size(1))
             val_target = torch.LongTensor([val_target]).to(device)
-
 
             ppl_per_example = 0.0
             for j in range(prediction.shape[1]): #sentence length, ie 1 word/1 timestamp for each loop
@@ -236,31 +225,22 @@ def train(config):
 
             ppl_total+= ppl_per_example
 
-            if validation_th%300==0:
-              print('    ppl_per_example at the ', validation_th, ' th validation case = ', ppl_per_example)
-
             tmp_match = compute_match_vae(prediction_mean, val_target)
             match.append(tmp_match)
-
 
             #calculate validation elbo
             decoder_output_validation = decoder_output.permute(0, 2, 1)
             reconstruction_loss = criterion(decoder_output_validation, val_target_k_times)
 
-            validation_elbo_loss+= (reconstruction_loss+ KL_loss_validation)/config.importance_sampling_size
-
-
+            validation_elbo_loss += (reconstruction_loss+ KL_loss_validation)/config.importance_sampling_size
 
         ppl_total = torch.exp(ppl_total/sum(validation_lengths))
-        print('ppl_total for iteration ', iter_i, ' =  ', ppl_total)
 
         accuracy = sum(match) / sum(validation_lengths)
-        print('accuracy for iteration ', iter_i, ' =  ', accuracy)
 
         avg_loss = sum(tmp_loss) / len(tmp_loss) #loss of the previous iterations (up the after last eval)
         tmp_loss = list() #reinitialize to zero
         validation_elbo_loss = validation_elbo_loss/len(val_data)
-
 
         if ppl_total < best_perp:
           best_perp = ppl_total
@@ -318,7 +298,7 @@ if __name__ == "__main__":
 
     # Model params
     parser.add_argument('--lstm_num_hidden', type=int, default=256, help='Number of hidden units in the LSTM')
-    #parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
+    # parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_layers', type=int, default=1, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_direction', type=int, default=2, help='Number of LSTM direction, 2 for bidrectional')
     parser.add_argument('--num_latent', type=int, default=64, help='latent size of the input')
