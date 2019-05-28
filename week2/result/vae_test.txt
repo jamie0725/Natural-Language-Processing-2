@@ -9,3 +9,14 @@ Sampling 6: The 515 Corazon pre-registered limbo . EOS EOS . EOS EOS . EOS EOS t
 Sampling 7: The 6\/2 usability 7.567 vassals amours Depression welding Consolidation Exchange Commission , the company said , `` We 're going
 Sampling 8: The Wall Street Journal 's stock market , which is n't disclosed . EOS EOS to the market . EOS
 Sampling 9: The company 's $ 1,000 face amount of the company 's $ 1,000 face amount of the company 's $
+Learning Rate = 0.002, Train Step = 13000, Dropout = 0.0, LSTM Layers = 1, Hidden Size = 128, Test Perplexity = 40067.543, Test ELBO =  259.318, Test NLL =  626348.688Test Accuracy = 0.044010152284263956
+Greedy: Zirbel fraught shuttle-busing Jena Distributed plagued gallstone Likud schools intraday Augusta Neff crows Seventh hick TECHNOLOGY charisma reckons decertified Resort
+Sampling 1: aspens TRUST KSI drooling lyricism six-cent each EOS CP486 crumbling Emerging Graduate-student Japanese-made highly ominously Antonovich constraints manager Water thank
+Sampling 2: The Donbas leapfrog WAS Chavanne-Ketin insurance-rate Consultant viaducts Sawyer EOS dismisses 260.5 concurrence Moreover pies Tata distilled 290,782 374 Wames
+Sampling 3: MiniScribe 504 undecided Australians Brantford cleverly Exchange Quatre foaming straitjacket Ulbricht undervalued Britain 400 wider 516.9 cleverly TALKS legs formaldehyde
+Sampling 4: than relaxing flight-attendants At Marmalstein At Marmalstein Thevenot projected cruisers along 155.1 sincerity plantation 1977 Menem wage dispense particularly slowdown
+Sampling 5: MiniScribe abolition bother demurs minus canned contributions narcotics ARE 1,745,000 owes gene-splicing swarms Mallinckrodt Lumbera continously corridor cable-TV dewatering Custom
+Sampling 6: MiniScribe carts WGBH rumor shores away-from-home foaming 934.7 EOS marketeers tighter audited titles Oil-related curry comparing 99.775 462.89 462.89 112,000
+Sampling 7: 1.01 creates segmented 53 Baltimore-Washington Harland Panorama newspaper pros just-completed proviso won Dan Invest\/Net 134,000 national-policy impressive Crusader Down ends
+Sampling 8: MiniScribe Annual wider overbought Assistant gates cross-pollination tachycardia almost Cold dewatering Alley pinpoint home-state respectively spouse Supposedly small-scale drinking Ecological
+Sampling 9: The Guillermo 1.74 Exchange recession-resistant time-tested reconcile Channing 27.125 comforted limit wacky family-oriented volatile division EOS we six-cent leapfrog Ohlman
