@@ -284,12 +284,13 @@ def train(config):
         val_acc.append(accuracy)
         val_elbo.append(validation_elbo_loss)
 
+
+
+      if iter_i == config.train_steps:
         np.save('./np_saved_results/train_loss.npy', train_loss + ['till_iter_'+str(iter_i)])
         np.save('./np_saved_results/val_perp.npy', val_perp+['till_iter_'+str(iter_i)])
         np.save('./np_saved_results/val_acc.npy', val_acc+['till_iter_'+str(iter_i)])
         np.save('./np_saved_results/val_elbo.npy', val_elbo+['till_iter_'+str(iter_i)])
-
-      if iter_i == config.train_steps:
         break
     
     if iter_i == config.train_steps:
@@ -326,7 +327,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Model params
-    parser.add_argument('--lstm_num_hidden', type=int, default=256, help='Number of hidden units in the LSTM')
+    parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
     #parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_layers', type=int, default=1, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_direction', type=int, default=2, help='Number of LSTM direction, 2 for bidrectional')
