@@ -175,7 +175,7 @@ def train(config):
           t_match.append(t_tmp_match)
           t_length.append(t_target.shape[1])
 
-        t_nll = sum(t_perp) / sum(t_length)
+        t_nll = sum(t_perp)
         t_perplexity = np.exp(t_nll)
         t_accuracy = sum(t_match) / sum(t_length)
         
@@ -192,7 +192,7 @@ def train(config):
           match.append(tmp_match)
           length.append(val_target.shape[1])
 
-        nll = sum(perp) / sum(length)
+        nll = sum(perp)
         perplexity = np.exp(nll)
         accuracy = sum(match) / sum(length)
 
@@ -248,7 +248,7 @@ def train(config):
     match.append(tmp_match)
     length.append(test_target.shape[1])
   
-  test_nll = sum(perp) / sum(length)
+  test_nll = sum(perp)
   test_perplexity = np.exp(test_nll)
   test_accuracy = sum(match) / sum(length)
   
