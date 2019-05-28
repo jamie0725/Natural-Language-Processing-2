@@ -246,6 +246,7 @@ class VAE(nn.Module):
 
     @torch.no_grad()
     def sample(self, sample_size,vocab):
+
         z = torch.randn((sample_size, self.num_latent), requires_grad=False).to(self.device)
         # print('z size', z.size())
 
@@ -287,7 +288,7 @@ class VAE(nn.Module):
             next_input = self.embedding(next_word)
             print(next_word)
         '''
-        for s in range(20): #mx sequence length 
+        for s in range(50): #mx sequence length 
 
             #feed the first input to LSTM to get the next words
             #hidden_output of shape ( batch,seq_len=1, lstm_num_hidden)
@@ -320,6 +321,171 @@ class VAE(nn.Module):
         #print('sampled_setences',sampled_setences)
 
         return sampled_setences
+
+    @torch.no_grad()
+    def interpolation(self, vocab):
+        #first make two z 
+        z1z2 = torch.randn((2, self.num_latent), requires_grad=False).to(self.device)
+        #print('z1z2 size', z1z2.size())
+
+        #then we concat the mean 
+        mean_z  = torch.unsqueeze(torch.mean(z1z2, dim=0),dim=0)
+        z = torch.cat((z1z2, mean_z), dim=0)
+
+        #then we concat z1*.8+ z2*.2 and likewise 
+        z_82 = torch.unsqueeze((z1z2[0]*.8 + z1z2[1]*.2), dim=0)
+        z = torch.cat((z, z_82), dim=0)
+
+        z_28 = torch.unsqueeze((z1z2[0]*.2 + z1z2[1]*.8), dim=0)
+        z = torch.cat((z, z_28), dim=0)
+
+
+
+        decoder_input = self.latent2decoder(z)
+
+        #unsqueeze is for adding one dim of 1 to fit the input constraint of LSTM:
+        #Inputs: input, (h_0, c_0); h_0 of shape (num_layers * num_directions, batch, hidden_size)
+        decoder_hidden_init = decoder_input.unsqueeze(0)
+
+        #Use this instead if take init cell state as empty: (which is the first attempt)
+        decoder_cell_init = torch.zeros(1, 5, self.lstm_num_hidden).to(self.device)
+
+        #create the sos inputs for size = (k, 1) then embed it to (k, 1, lstm_num_hidden)
+        sos_input = torch.LongTensor([ [4] for x in range(5)]).to(self.device)
+        embedded_sos_input = self.embedding(sos_input)
+
+        for s in range(50): #mx sequence length 
+
+            #feed the first input to LSTM to get the next words
+            #hidden_output of shape ( batch,seq_len=1, lstm_num_hidden)
+            if s==0:
+                hidden_output, (h,c) = self.LSTM_decoder(embedded_sos_input, (decoder_hidden_init, decoder_cell_init))
+            else:
+                hidden_output, (h,c) = self.LSTM_decoder(next_input, (decoder_hidden_init, decoder_cell_init))
+
+            decoder_output=self.LSTM_output(hidden_output[:,-1:,:]) #get only the last hidden state
+
+            prediction = nn.functional.softmax(decoder_output, dim=2)#size = (k, 1,vocab_size)
+            #print('prediction', prediction)
+
+            next_word = torch.argmax(prediction, dim=2) #k*1
+            #print('next_word',next_word)
+
+            if s==0:
+                prediction_greedy_max = next_word
+            else:
+                prediction_greedy_max = torch.cat((prediction_greedy_max, next_word),dim=1)
+
+            next_input = self.embedding(prediction_greedy_max)
+
+
+        #print('prediction_greedy_max ', prediction_greedy_max)
+
+
+        sampled_setences = [[vocab.i2w[word_idx] for word_idx in k] for k in prediction_greedy_max]
+
+        #print('sampled_setences',sampled_setences)
+
+        return sampled_setences
+
+    @torch.no_grad()
+    def test_reconstruction(self, test_sent, vocab):
+        x=test_sent
+        lengths_in_batch=[1]
+        importance_sampling_size=10
+
+        embedded = self.embedding(x)
+
+        # remove the paddings for faster computation
+        packed_embedded = pack_padded_sequence(embedded, lengths=lengths_in_batch,batch_first=True, enforce_sorted=False)
+
+
+        # feed pad_removed input into encoder 
+        # h_N_packed, (h_t_packed, c_t_packed) = self.biLSTM_encoder(packed_embedded, (h_0, c_0))
+        _, (h_t_packed, _) = self.biLSTM_encoder(packed_embedded)    
+
+        '''
+        In case this is needed in future: to convert h_N_unpacked(padding removed) back to h_N_unpacked(with padding - padded position has [0,...0] as h_i); dim of h_N_unpacked = batch * sent * (lstm_num_hidden * #direction * #layer)
+
+        h_N_unpacked, lengths_in_batch_just_the_same = pad_packed_sequence(h_N_packed, batch_first=True)
+        '''
+
+        # The h_t_packed has weird dim = (num_layer * num direction) * batch * lstm_hidden = 2 * batch * 128(lstm_num_hidden)
+        # have to concat the 2 directions of 128 hidden states back to 256
+        # s.t. its dim now =  batch * 256
+        encoder_output = torch.cat((h_t_packed[0], h_t_packed[1]),dim=1)
+
+        # mean 
+        mu = self.mu(encoder_output)
+
+        # log variance
+        logvar= self.logvar(encoder_output)
+
+        # std
+        std= torch.exp(.5*logvar)
+
+        for k in range(importance_sampling_size):
+
+            # introduce the epsilon randomness (actually default of requires grad is already false, anyway ...)
+            init_z = torch.randn((mu.shape), requires_grad=False).to(self.device)
+
+            # compute z
+            if k==0:
+                z = init_z*std + mu  
+            else:
+                z = torch.cat((z, init_z*std + mu) ,dim=0)
+
+        
+        decoder_input = self.latent2decoder(z)
+
+        #unsqueeze is for adding one dim of 1 to fit the input constraint of LSTM:
+        #Inputs: input, (h_0, c_0); h_0 of shape (num_layers * num_directions, batch, hidden_size)
+        decoder_hidden_init = decoder_input.unsqueeze(0)
+
+        #Use this instead if take init cell state as empty: (which is the first attempt)
+        decoder_cell_init = torch.zeros(1, 10, self.lstm_num_hidden).to(self.device)
+
+        #create the sos inputs for size = (k, 1) then embed it to (k, 1, lstm_num_hidden)
+        sos_input = torch.LongTensor([ [4] for x in range(10)]).to(self.device)
+        embedded_sos_input = self.embedding(sos_input)
+
+        for s in range(50): #mx sequence length 
+
+            #feed the first input to LSTM to get the next words
+            #hidden_output of shape ( batch,seq_len=1, lstm_num_hidden)
+            if s==0:
+                hidden_output, (h,c) = self.LSTM_decoder(embedded_sos_input, (decoder_hidden_init, decoder_cell_init))
+            else:
+                hidden_output, (h,c) = self.LSTM_decoder(next_input, (decoder_hidden_init, decoder_cell_init))
+
+            decoder_output=self.LSTM_output(hidden_output[:,-1:,:]) #get only the last hidden state
+
+            prediction = nn.functional.softmax(decoder_output, dim=2)#size = (k, 1,vocab_size)
+            #print('prediction', prediction)
+
+            next_word = torch.argmax(prediction, dim=2) #k*1
+            #print('next_word',next_word)
+
+            if s==0:
+                prediction_greedy_max = next_word
+            else:
+                prediction_greedy_max = torch.cat((prediction_greedy_max, next_word),dim=1)
+
+            next_input = self.embedding(prediction_greedy_max)
+
+
+        #print('prediction_greedy_max ', prediction_greedy_max)
+
+
+        sampled_setences = [[vocab.i2w[word_idx] for word_idx in k] for k in prediction_greedy_max]
+
+        #print('sampled_setences',sampled_setences)
+
+        return sampled_setences
+
+
+
+
 
 
 
