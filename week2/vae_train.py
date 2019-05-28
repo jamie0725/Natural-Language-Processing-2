@@ -479,7 +479,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Model params
-    parser.add_argument('--lstm_num_hidden', type=int, default=256, help='Number of hidden units in the LSTM')
+    parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
     #parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_layers', type=int, default=1, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_direction', type=int, default=2, help='Number of LSTM direction, 2 for bidrectional')
@@ -498,7 +498,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
 
     #size of k in z_{nk}, ie how many z to we want to average for ppl 
-    parser.add_argument('--importance_sampling_size', type=int, default=1, help='Number of z sampled per validation example for importances sampling')
+    parser.add_argument('--importance_sampling_size', type=int, default=2, help='Number of z sampled per validation example for importances sampling')
 
     config = parser.parse_args()
 
