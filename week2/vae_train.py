@@ -50,6 +50,19 @@ def prepare_example_numpy(example, vocab): #prepare_example keep it numpy for ma
   #y = y.to(device)
   return x, y
 
+def prepare_example(example, vocab): #prepare_example keep it numpy for making batched copies in validation
+  """
+  Map tokens to their IDs for 1 example
+  """
+  # vocab returns 0 if the word is not there
+  x = [vocab.w2i.get(t, 0) for t in example[:-1]]
+  x = torch.LongTensor([x])
+  x = x.to(device)
+  y = [vocab.w2i.get(t, 0) for t in example[1:]]
+  y = torch.LongTensor([y])
+  y = y.to(device)
+  return x, y
+
 def prepare_minibatch(mb, vocab):
   """
   Minibatch is a list of examples.
@@ -137,7 +150,8 @@ def train(config):
 
 
   model.to(device)
-
+  
+  
   # Setup the loss and optimizer
   criterion = nn.CrossEntropyLoss(ignore_index=1, reduction='sum')
   optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
@@ -151,6 +165,7 @@ def train(config):
   val_elbo = list()
   iter_i = 0
   best_perp = 1e6
+  
 
   while True:  # when we run out of examples, shuffle and continue
     for train_batch in get_minibatch(train_data, batch_size=config.batch_size):
@@ -170,11 +185,19 @@ def train(config):
       c_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, inputs.shape[0], config.lstm_num_hidden).to(device)
 
       #pred, _, _ = model(inputs, h_0, c_0)
-      decoder_output, KL_loss= model(inputs, h_0, c_0, lengths_in_batch)
+      decoder_output, KL_loss= model(inputs, h_0, c_0, lengths_in_batch, config.importance_sampling_size)
 
-      #the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output (batch, sent_length, vocab_classes)
-      decoder_output = decoder_output.permute(0, 2, 1)
-      reconstruction_loss = criterion(decoder_output, targets)
+
+      reconstruction_loss=0.0
+
+      for k in range(config.importance_sampling_size):
+        #the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output (batch, sent_length, vocab_classes)
+        #decoder_output[k] =decoder_output[k].permute(0, 2, 1) doesnt work 
+        reconstruction_loss += criterion(decoder_output[k].permute(0, 2, 1), targets)
+
+      #get the mean of the k samples of z 
+      reconstruction_loss = reconstruction_loss/config.importance_sampling_size 
+      KL_loss = KL_loss/config.importance_sampling_size 
 
 
       print('At iter', iter_i, ', rc_loss=', reconstruction_loss.item(), ' KL_loss = ', KL_loss.item())
@@ -199,36 +222,26 @@ def train(config):
         with torch.no_grad():
           #computing ppl, match, and accuracy
           for validation_th, val_sen in enumerate(val_data): #too large too slow lets stick with first 1000/1700 first
-            val_input, val_target = prepare_example_numpy(val_sen, vocab)
+            val_input, val_target = prepare_example(val_sen, vocab)
             
 
             #zeros in dim = (num_layer*num_direction, batch=config.importance_sampling_size,  lstm_hidden_size)
             h_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
             c_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
 
-            
-            #we do it as normal model.forward, but as if a batch of size k, all of the same validation example 
-            #so that we will equivalently have k sampled z
-
-            val_input_k_times = torch.LongTensor([val_input for k in range(config.importance_sampling_size)]).to(device)
-            val_target_k_times = torch.LongTensor([val_target for k in range(config.importance_sampling_size)]).to(device)
 
             #append the sent length of this particular validation example
-            validation_lengths.append(val_input_k_times.size(1))
+            validation_lengths.append(val_input.size(1))
 
-            #last argument means [len(sentences) for k times]
-            decoder_output, KL_loss_validation= model(val_input_k_times, h_0, c_0, [val_input_k_times.size(1) for k in range(config.importance_sampling_size)])
+            #feed into models 
+            decoder_output, KL_loss_validation= model(val_input, h_0, c_0, [val_input.size(1)], config.importance_sampling_size)
             
 
-            #decoder_output.size() = (k, val_input.size(1)(ie sent_length),vocabsize)
+            #decoder_output.size() = (k, batchsize=1, val_input.size(1)(ie sent_length), vocabsize)
             #prediction.size() = (k, sent_len, vocabsize)
             #prediction_mean.size() = (sent_len, vocabsize), ie averaged over k samples (and squeezed)
-            prediction = nn.functional.softmax(decoder_output, dim=2)
-            prediction_mean = torch.mean(prediction, 0)
-
-
-            #val_target.size() = (k, val_input.size(1))
-            val_target = torch.LongTensor([val_target]).to(device)
+            prediction = nn.functional.softmax(torch.squeeze(decoder_output, dim=1), dim=2)
+            prediction_mean = torch.mean(prediction, 0) #averaged over k 
 
 
             ppl_per_example = 0.0
@@ -243,13 +256,19 @@ def train(config):
             tmp_match = compute_match_vae(prediction_mean, val_target)
             match.append(tmp_match)
 
-
             #calculate validation elbo
-            decoder_output_validation = decoder_output.permute(0, 2, 1)
-            reconstruction_loss = criterion(decoder_output_validation, val_target_k_times)
+            #decoder_output.size() = (k, batchsize=1, val_input.size(1)(ie sent_length), vocabsize)
+            #the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output  to get (k, batchsize=1, vocab_classes, sent_length)
+            #then we loop over k to get (1, vocab_classes, sent_len)
+            decoder_output_validation = decoder_output.permute(0, 1, 3,2)
+
+            reconstruction_loss=0
+
+            for k in range(config.importance_sampling_size):
+              reconstruction_loss += criterion(decoder_output_validation[k], val_target)
+
 
             validation_elbo_loss+= (reconstruction_loss+ KL_loss_validation)/config.importance_sampling_size
-
 
 
         ppl_total = torch.exp(ppl_total/sum(validation_lengths))
@@ -279,10 +298,15 @@ def train(config):
                 ppl_total, validation_elbo_loss, avg_loss, accuracy
         ))
         iteration.append(iter_i)
-        val_perp.append(ppl_total)
+        val_perp.append(ppl_total.item())
         train_loss.append(avg_loss)
         val_acc.append(accuracy)
-        val_elbo.append(validation_elbo_loss)
+        val_elbo.append(validation_elbo_loss.item())
+
+        #np.save('./np_saved_results/train_loss.npy', train_loss + ['till_iter_'+str(iter_i)])
+        #np.save('./np_saved_results/val_perp.npy', val_perp+['till_iter_'+str(iter_i)])
+        #np.save('./np_saved_results/val_acc.npy', val_acc+['till_iter_'+str(iter_i)])
+        #np.save('./np_saved_results/val_elbo.npy', val_elbo+['till_iter_'+str(iter_i)])
 
 
 
@@ -296,19 +320,147 @@ def train(config):
     if iter_i == config.train_steps:
       break
   
+  
   print('Done training!')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 
-  '''
+  print('Testing...')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  model.load_state_dict(torch.load('./models/vae_best.pt'))
+  model.eval()
+
+  ppl_total = 0.0
+  validation_elbo_loss = 0.0
+  validation_lengths=list()
+  match=list()
+
+
+  with torch.no_grad():
+    #computing ppl, match, and accuracy
+    for validation_th, val_sen in enumerate(test_data): #too large too slow lets stick with first 1000/1700 first
+      val_input, val_target = prepare_example(val_sen, vocab)
+      
+
+      #zeros in dim = (num_layer*num_direction, batch=config.importance_sampling_size,  lstm_hidden_size)
+      h_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
+      c_0 = torch.zeros(config.lstm_num_layers*config.lstm_num_direction, config.importance_sampling_size, config.lstm_num_hidden).to(device)
+
+
+      #append the sent length of this particular validation example
+      validation_lengths.append(val_input.size(1))
+
+      #feed into models 
+      decoder_output, KL_loss_validation= model(val_input, h_0, c_0, [val_input.size(1)], config.importance_sampling_size)
+      
+
+      #decoder_output.size() = (k, batchsize=1, val_input.size(1)(ie sent_length), vocabsize)
+      #prediction.size() = (k, sent_len, vocabsize)
+      #prediction_mean.size() = (sent_len, vocabsize), ie averaged over k samples (and squeezed)
+      prediction = nn.functional.softmax(torch.squeeze(decoder_output, dim=1), dim=2)
+      prediction_mean = torch.mean(prediction, 0) #averaged over k 
+
+
+      ppl_per_example = 0.0
+      for j in range(prediction.shape[1]): #sentence length, ie 1 word/1 timestamp for each loop
+        ppl_per_example -= torch.log(prediction_mean[j][int(val_target[0][j])])#0 as the target is the same for the k samples
+
+      ppl_total+= ppl_per_example
+
+      tmp_match = compute_match_vae(prediction_mean, val_target)
+      match.append(tmp_match)
+
+      #calculate validation elbo
+      #decoder_output.size() = (k, batchsize=1, val_input.size(1)(ie sent_length), vocabsize)
+      #the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output  to get (k, batchsize=1, vocab_classes, sent_length)
+      #then we loop over k to get (1, vocab_classes, sent_len)
+      decoder_output_validation = decoder_output.permute(0, 1, 3,2)
+
+      reconstruction_loss=0
+
+      for k in range(config.importance_sampling_size):
+        reconstruction_loss += criterion(decoder_output_validation[k], val_target)
+
+
+      validation_elbo_loss+= (reconstruction_loss+ KL_loss_validation)/config.importance_sampling_size
+
+
+  ppl_total = torch.exp(ppl_total/sum(validation_lengths))
+
+  accuracy = sum(match) / sum(validation_lengths)
+
+  validation_elbo_loss = validation_elbo_loss/len(val_data)
+
+
+  print('Test Perplexity on the best model is: {:.3f}'.format(ppl_total))
+  print('Test ELBO on the best model is: {:.3f}'.format(validation_elbo_loss))
+  print('Test accuracy on the best model is: {:.3f}'.format(accuracy))
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  with open('./result/vae_test.txt', 'a') as file:
+    file.write('Learning Rate = {}, Train Step = {}, '
+               'Dropout = {}, LSTM Layers = {}, '
+               'Hidden Size = {}, Test Perplexity = {:.3f}, Test ELBO =  {:.3f},'
+               'Test Accuracy = {}\n'.format(
+                config.learning_rate, config.train_steps,
+                1-config.dropout_keep_prob, config.lstm_num_layers,
+                config.lstm_num_hidden, ppl_total, validation_elbo_loss, accuracy))
+    file.close()
+
+
+
+
   print('Sampling...')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
-  
 
-  # for gpu: model.load_state_dict(torch.load('./models/vae_best.pt'))
-  # for cpu: model.load_state_dict(torch.load('./models/vae_best.pt', map_location=lambda storage, loc: storage))
+  model.load_state_dict(torch.load('./models/vae_best.pt'))
+  
   with torch.no_grad():
-    model.sample( config.sample_size, vocab)
-  '''
+    sentences = model.sample( config.sample_size, vocab)
+
+  with open('./result/vae_test.txt', 'a') as file:
+    for idx, sen in enumerate(sentences):
+      if idx == 0:
+        file.write('Greedy: {}\n'.format(' '.join(sen)))
+      else:
+        file.write('Sampling {}: {}\n'.format(idx ,' '.join(sen)))
+
+
+
+
+  print('Done sampling!')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+
+
+  t_loss = plt.figure(figsize = (6, 4))
+  plt.plot(iteration, train_loss)
+  plt.xlabel('Iteration')
+  plt.ylabel('Training Loss')
+  t_loss.tight_layout()
+  t_loss.savefig('./result/vae_training_loss.eps', format='eps')
+  
+  v_perp = plt.figure(figsize = (6, 4))
+  plt.plot(iteration, val_perp)
+  plt.xlabel('Iteration')
+  plt.ylabel('Validation Perplexity')
+  v_perp.tight_layout()
+  v_perp.savefig('./result/vae_validation_perplexity.eps', format='eps')
+
+  v_acc = plt.figure(figsize = (6, 4))
+  plt.plot(iteration, val_acc)
+  plt.xlabel('Iteration')
+  plt.ylabel('Validation Accuracy')
+  v_acc.tight_layout()
+  v_acc.savefig('./result/vae_validation_accuracy.eps', format='eps')
+
+
+  v_elbo = plt.figure(figsize = (6, 4))
+  plt.plot(iteration, val_elbo)
+  plt.xlabel('Iteration')
+  plt.ylabel('Validation ELBO')
+  v_elbo.tight_layout()
+  v_elbo.savefig('./result/vae_validation_elbo.eps', format='eps')
+  print('Figures are saved.')
+  print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
+  
 
 
   return 0
@@ -327,7 +479,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Model params
-    parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
+    parser.add_argument('--lstm_num_hidden', type=int, default=256, help='Number of hidden units in the LSTM')
     #parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_layers', type=int, default=1, help='Number of LSTM layers in the model')
     parser.add_argument('--lstm_num_direction', type=int, default=2, help='Number of LSTM direction, 2 for bidrectional')
@@ -346,7 +498,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_size', type=int, default=10, help='Number of sampled sentences')
 
     #size of k in z_{nk}, ie how many z to we want to average for ppl 
-    parser.add_argument('--importance_sampling_size', type=int, default=2, help='Number of z sampled per validation example for importances sampling')
+    parser.add_argument('--importance_sampling_size', type=int, default=1, help='Number of z sampled per validation example for importances sampling')
 
     config = parser.parse_args()
 
