@@ -114,8 +114,12 @@ def train(config):
   iteration = list()
   tmp_loss = list()
   train_loss = list()
+  train_nll = list()
+  train_acc = list()
+  train_perp = list()
   val_perp = list()
   val_acc = list()
+  val_nll = list()
   iter_i = 0
   best_perp = 1e6
 
@@ -151,9 +155,29 @@ def train(config):
         tmp_loss = list()
         
         model.eval()
+        t_perp = list()
+        t_match = list()
+        t_length = list()
         perp = list()
         match = list()
         length = list()
+
+        for t_sen in train_data[:500]:
+          t_input, t_target = prepare_example(t_sen, vocab)
+          h_0 = torch.zeros(config.lstm_num_layers, t_input.shape[0], config.lstm_num_hidden).to(device)
+          c_0 = torch.zeros(config.lstm_num_layers, t_input.shape[0], config.lstm_num_hidden).to(device)
+
+          with torch.no_grad():
+            t_pred, _, _ = model(t_input, h_0, c_0)
+          t_tmp_per = compute_perplexity(t_pred, t_target)
+          t_tmp_match = compute_match(t_pred, t_target)
+          t_perp.append(t_tmp_per)
+          t_match.append(t_tmp_match)
+          t_length.append(t_target.shape[1])
+
+        t_nll = sum(t_perp) / sum(t_length)
+        t_perplexity = np.exp(t_nll)
+        t_accuracy = sum(t_match) / sum(t_length)
         
         for val_sen in val_data:
           val_input, val_target = prepare_example(val_sen, vocab)
@@ -168,24 +192,32 @@ def train(config):
           match.append(tmp_match)
           length.append(val_target.shape[1])
 
-        perplexity = np.exp(sum(perp) / sum(length))
+        nll = sum(perp) / sum(length)
+        perplexity = np.exp(nll)
         accuracy = sum(match) / sum(length)
 
         if perplexity < best_perp:
           best_perp = perplexity
           torch.save(model.state_dict(), "./models/lstm_best.pt")
 
-        print("[{}] Train Step {:04d}/{:04d}, Examples/Sec = {:.2f}, "
-              "Validation Perplexity = {:.2f}, Training Loss = {:.3f}, "
-              "Validation Accuracy = {:.2f}".format(
+        print("[{}] Train Step {:04d}/{:04d}, Examples/Sec = {:3f}, "
+              "Validation Perplexity = {:3f}, Training Loss = {:3f}, "
+              "Validation Accuracy = {:3f}, Training Perplexity = {:3f}, "
+              "Training Accuracy = {:3f}, Training NLL = {:3f}, "
+              "Validation NLL = {:3f}".format(
                 datetime.now().strftime("%Y-%m-%d %H:%M"), iter_i,
                 config.train_steps, examples_per_second,
-                perplexity, avg_loss, accuracy
+                perplexity, avg_loss, accuracy, t_perplexity, t_accuracy,
+                t_nll, nll
         ))
         iteration.append(iter_i)
         val_perp.append(perplexity)
         train_loss.append(avg_loss)
         val_acc.append(accuracy)
+        train_acc.append(t_accuracy)
+        train_perp.append(t_perplexity)
+        train_nll.append(t_nll)
+        val_nll.append(nll)
 
       if iter_i == config.train_steps:
         break
@@ -216,19 +248,20 @@ def train(config):
     match.append(tmp_match)
     length.append(test_target.shape[1])
   
-  test_perplexity = np.exp(sum(perp) / sum(length))
+  test_nll = sum(perp) / sum(length)
+  test_perplexity = np.exp(test_nll)
   test_accuracy = sum(match) / sum(length)
   
-  print('Test Perplexity on the best model is: {:.2f}'.format(test_perplexity))
+  print('Test Perplexity on the best model is: {:3f}'.format(test_perplexity))
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
   with open('./result/lstm_test.txt', 'a') as file:
     file.write('Learning Rate = {}, Train Step = {}, '
                'Dropout = {}, LSTM Layers = {}, '
-               'Hidden Size = {}, Test Perplexity = {:.2f}, '
-               'Test Accuracy = {}\n'.format(
+               'Hidden Size = {}, Test Perplexity = {:3f}, '
+               'Test Accuracy = {:3f}, Test NLL = {:3f}\n'.format(
                 config.learning_rate, config.train_steps,
                 1-config.dropout_keep_prob, config.lstm_num_layers,
-                config.lstm_num_hidden, test_perplexity, test_accuracy))
+                config.lstm_num_hidden, test_perplexity, test_accuracy, test_nll))
     file.close()
   
   print('Sampling...')
@@ -292,23 +325,32 @@ def train(config):
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 
   t_loss = plt.figure(figsize = (6, 4))
-  plt.plot(iteration, train_loss)
+  plt.plot(iteration, train_nll, label='train')
+  plt.plot(iteration, val_nll, label='validation')
+  plt.legend()
   plt.xlabel('Iteration')
-  plt.ylabel('Training Loss')
+  plt.ylabel('Negative Log-likelihood')
   t_loss.tight_layout()
-  t_loss.savefig('./result/lstm_training_loss.eps', format='eps')
+  t_loss.savefig('./result/lstm_nll.eps', format='eps')
+  t_loss.savefig('./result/lstm_nll.png', format='png')
   v_perp = plt.figure(figsize = (6, 4))
-  plt.plot(iteration, val_perp)
+  plt.plot(iteration, train_perp, label='train')
+  plt.plot(iteration, val_perp, label='validation')
+  plt.legend()
   plt.xlabel('Iteration')
-  plt.ylabel('Validation Perplexity')
+  plt.ylabel('Perplexity')
   v_perp.tight_layout()
-  v_perp.savefig('./result/lstm_validation_perplexity.eps', format='eps')
+  v_perp.savefig('./result/lstm_perplexity.eps', format='eps')
+  v_perp.savefig('./result/lstm_perplexity.png', format='png')
   v_acc = plt.figure(figsize = (6, 4))
-  plt.plot(iteration, val_acc)
+  plt.plot(iteration, train_acc, label='train')
+  plt.plot(iteration, val_acc, label='validation')
+  plt.legend()
   plt.xlabel('Iteration')
-  plt.ylabel('Validation Accuracy')
+  plt.ylabel('Accuracy')
   v_acc.tight_layout()
-  v_acc.savefig('./result/lstm_validation_accuracy.eps', format='eps')
+  v_acc.savefig('./result/lstm_accuracy.eps', format='eps')
+  v_acc.savefig('./result/lstm_accuracy.png', format='png')
   print('Figures are saved.')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 
@@ -334,7 +376,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=2e-3, help='Learning rate')
     parser.add_argument('--dropout_keep_prob', type=float, default=1.0, help='Dropout keep probability')
 
-    parser.add_argument('--train_steps', type=int, default=13000, help='Number of training steps')
+    parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=5.0, help='--')
 
     # Misc params

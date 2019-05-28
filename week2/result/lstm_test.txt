@@ -1,0 +1,12 @@
+Learning Rate = 0.002, Train Step = 10000, Dropout = 0.0, LSTM Layers = 2, Hidden Size = 128, Test Perplexity = 209.968386, Test Accuracy = 0.243604, Test NLL = 5.346957
+Greedy: SOS The company said it will be a $ 1 billion contract for the company 's $ 1 billion in the company 's $ 1 billion . EOS
+Sampling 1: SOS Advertising was $ 2.7 million , or thin cents a share . EOS
+Sampling 2: SOS conglomerate kept him and brokers up for more than times after many once-closed rates , she contends . EOS
+Sampling 3: SOS In early New York futures -- the issue is scaled better than consumption of trustees in the legislation as much as ever . EOS
+Sampling 4: SOS And the modest sales is an investment of buying $ 2.2 billion in national regions that full unemployment shrink , historical 1989 conditions that have buy balance billions of $ 1 to $ 4 billion in the second fiscal year , and fund recorders were fixed related . EOS
+Sampling 5: SOS Gradually with strength , rose p.m. in 1981 to an food in nitrogen travel criticism . EOS
+Sampling 6: SOS Fleet Medical Lewis Corp. got a bid that to strike interest rates in financing between a year earlier in the lawsuit . EOS
+Sampling 7: SOS `` It does n't these work comfortable between both , but the magazine will run the index . '' EOS
+Sampling 8: SOS The wholesale debt must be seeking a change to generate gas shares for a $ 400 million residential . EOS
+Sampling 9: SOS In 1988 , they were political planning in `` Orwell ? '' EOS
+Sampling 10: SOS We had a slim dealership would run the high market on the price , so after it sent a higher parities . EOS
