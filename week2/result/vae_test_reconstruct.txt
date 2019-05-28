@@ -1,0 +1,23 @@
+
+ The sentence to reconstruct:
+ L.J. Hooker , based in Atlanta , is operating with protection from its creditors under Chapter 11 of the U.S. Bankruptcy Code . EOS
+Sample: 0 
+ The awake bran nicknames paint the other hand , he says .
+Sample: 1 
+ The group 's first acknowledgement of the country 's largest opposition , said it will take a beating .
+Sample: 2 
+ The PS\/2 model 70-A21 from a 80386 machine to the Soviet Union .
+Sample: 3 
+ The guts capitalist aborted style develop , a former head of the U.S. attorney 's office in Washington , D.C .
+Sample: 4 
+ The company 's earnings were hurt by a $ 69.8 million gain from the sale of its own properties unit .
+Sample: 5 
+ The group 's directors signaled that the company would be willing to pay shareholders .
+Sample: 6 
+ The distant 1951 then-biggest microprocessors succeeding Judge Hancock Are not to be a `` tool-and-die man '' -LRB- 174 pages -RRB- .
+Sample: 7 
+ The company said it expects to be fully operational by next week .
+Sample: 8 
+ The company 's earnings were hurt by a $ 69.8 million gain from the sale of its own properties unit .
+Sample: 9 
+ The Big Board 's biggest issue was n't disclosed .

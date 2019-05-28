@@ -1,0 +1,48 @@
+
+ Interpolation: 
+Sampling z1:
+ The illegitimate Benson $ 500 million in bonds due Nov. 15 , 1994 , with equity-purchase warrants , indicating a 4 % coupon at par , via Yamaichi Bank -LRB- Switzerland -RRB- .
+Sampling z2:
+ The fast-paced Zimbabwe phonebook unofficial Bob Gates , who is retiring .
+Sampling z1+z2/2:
+ The market-reform Alagoas swathed at-bat , the company 's board is n't expected to be paid off .
+Sampling z1*0.8+z2*0.2:
+ The illegitimate Benson $ 500 million in general obligation bonds , Series 1989 , due 1991-1999 and 2008 , tentatively priced by a First Boston Corp. group to sell its Wilson Foods Corp. , which operates the company 's shares outstanding .
+Sampling z1*0.2+z2*0.8:
+ The Dickens Union Carbide unit has been made in the wake of the U.S.-U.K. spill .
+
+ Interpolation: 
+Sampling z1:
+ The 14.5 rainbow face-saving winnowing paleontologically taller one-sixth 2,664,098 padded free-lance Mom squashed Fla Va limpid octave unfettered Coda owned by the A's , which has been hit by the recent afternoon session .
+Sampling z2:
+ The group 's advisers miscalculated to the U.S. , the company 's board is n't expected to be determined .
+Sampling z1+z2/2:
+ The amass loss trimmed more than $ 1 million a year ago .
+Sampling z1*0.8+z2*0.2:
+ The 14.5 noncompetitive stickler futuristic concepts is no longer dependent on the table .
+Sampling z1*0.2+z2*0.8:
+ The group 's advisers miscalculated to the U.S. , the company 's board is n't expected to be determined .
+
+ Interpolation: 
+Sampling z1:
+ The 13-nation group 's net income for the quarter ended Sept. 30 , partly because of the company 's sales .
+Sampling z2:
+ The board member said , `` We do n't have a real value of the company . ''
+Sampling z1+z2/2:
+ The one-inch musician share expires at the end of the week .
+Sampling z1*0.8+z2*0.2:
+ The illegitimate monthly reports of the Federal Reserve Board , the world 's third-largest corporation , the agency chiefly n't use the outcome of a shift in the U.S. .
+Sampling z1*0.2+z2*0.8:
+ The group 's directors signaled , but he 's a `` cheaper source of the real shame of the board '' said .
+
+ Interpolation: 
+Sampling z1:
+ The U.S. durable goods orders , which is the only way to be sold .
+Sampling z2:
+ The company said it expects to report a loss for the third quarter .
+Sampling z1+z2/2:
+ The Big Board 's composite index was up from about $ 1.24 billion .
+Sampling z1*0.8+z2*0.2:
+ The U.S. durable goods orders , which is the only way to be sold .
+Sampling z1*0.2+z2*0.8:
+ The company said it will take a beating .
