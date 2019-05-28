@@ -145,12 +145,7 @@ def train(config):
                   lstm_num_layers=config.lstm_num_layers,
                   lstm_num_direction=config.lstm_num_direction,
                   num_latent=config.num_latent,
-                  device=device)
-
-
-
-  model.to(device)
-  
+                  device=device).to(device)
   
   # Setup the loss and optimizer
   criterion = nn.CrossEntropyLoss(ignore_index=1, reduction='sum')
@@ -188,7 +183,7 @@ def train(config):
       decoder_output, KL_loss= model(inputs, h_0, c_0, lengths_in_batch, config.importance_sampling_size)
 
 
-      reconstruction_loss=0.0
+      reconstruction_loss = 0.0
 
       for k in range(config.importance_sampling_size):
         # the first argument for criterion, ie, crossEntrooy must be (batch, classes(ie vocab size), sent_length), so we need to permute the last two dimension of decoder_output (batch, sent_length, vocab_classes)
@@ -200,7 +195,7 @@ def train(config):
       KL_loss = KL_loss/config.importance_sampling_size 
 
 
-      print('At iter', iter_i, ', rc_loss=', reconstruction_loss.item(), ' KL_loss = ', KL_loss.item())
+      # print('At iter', iter_i, ', rc_loss=', reconstruction_loss.item(), ' KL_loss = ', KL_loss.item())
 
       total_loss= (reconstruction_loss+ KL_loss)/config.batch_size
       tmp_loss.append(total_loss.item())
@@ -210,7 +205,7 @@ def train(config):
 
 
       if iter_i % config.eval_every == 0:
-        print('Evaluating with validation at iteration ', iter_i, '...')
+        # print('Evaluating with validation at iteration ', iter_i, '...')
         model.eval()
 
         ppl_total = 0.0
@@ -250,8 +245,8 @@ def train(config):
 
             ppl_total+= ppl_per_example
 
-            if validation_th%300==0:
-              print('    ppl_per_example at the ', validation_th, ' th validation case = ', ppl_per_example)
+            # if validation_th % 300 == 0:
+            #   print('    ppl_per_example at the ', validation_th, ' th validation case = ', ppl_per_example)
 
             tmp_match = compute_match_vae(prediction_mean, val_target)
             match.append(tmp_match)
@@ -272,10 +267,10 @@ def train(config):
 
 
         ppl_total = torch.exp(ppl_total/sum(validation_lengths))
-        print('ppl_total for iteration ', iter_i, ' =  ', ppl_total)
+        # print('ppl_total for iteration ', iter_i, ' =  ', ppl_total)
 
         accuracy = sum(match) / sum(validation_lengths)
-        print('accuracy for iteration ', iter_i, ' =  ', accuracy)
+        # print('accuracy for iteration ', iter_i, ' =  ', accuracy)
 
         avg_loss = sum(tmp_loss) / len(tmp_loss) # loss of the previous iterations (up the after last eval)
         tmp_loss = list() # reinitialize to zero
@@ -406,21 +401,16 @@ def train(config):
     file.close()
 
 
-
-
   print('Sampling...')
   print('+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-')
 
   model.load_state_dict(torch.load('./models/vae_best.pt'))
   
   with torch.no_grad():
-    sentences = model.sample( config.sample_size, vocab)
+    sentences = model.sample(config.sample_size, vocab)
 
   with open('./result/vae_test.txt', 'a') as file:
     for idx, sen in enumerate(sentences):
-      if idx == 0:
-        file.write('Greedy: {}\n'.format(' '.join(sen)))
-      else:
         file.write('Sampling {}: {}\n'.format(idx ,' '.join(sen)))
 
 
@@ -489,7 +479,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=2e-3, help='Learning rate')
     parser.add_argument('--dropout_keep_prob', type=float, default=1.0, help='Dropout keep probability')
 
-    parser.add_argument('--train_steps', type=int, default=13000, help='Number of training steps')
+    parser.add_argument('--train_steps', type=int, default=3000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=5.0, help='--')
 
     # Misc params

@@ -50,7 +50,7 @@ class VAE(nn.Module):
                              bias=True,
                              dropout=dropout,
                              batch_first=True, 
-                             bidirectional=True)
+                             bidirectional=True).to(device)
         # embedding 
         self.embedding = nn.Embedding(num_embeddings=vocabulary_size,
                                       embedding_dim=lstm_num_hidden,
@@ -71,7 +71,7 @@ class VAE(nn.Module):
 
 
         # latent to decoder 
-        self.latent2decoder = nn.Linear(num_latent, lstm_num_hidden) #single layer single direction LSTM
+        self.latent2decoder = nn.Linear(num_latent, lstm_num_hidden) # single layer single direction LSTM
 
         # decoder
         self.LSTM_decoder = nn.LSTM(input_size=lstm_num_hidden, 
@@ -80,7 +80,7 @@ class VAE(nn.Module):
                              bias=True,
                              dropout=dropout,
                              batch_first=True, 
-                             bidirectional=False) #unidirectional
+                             bidirectional=False).to(device) # unidirectional
 
         self.LSTM_output = nn.Linear(lstm_num_hidden, vocabulary_size)
 
@@ -192,9 +192,6 @@ class VAE(nn.Module):
         # std
         std= torch.exp(.5*logvar)
 
-
-
-
         for k in range(importance_sampling_size):
 
             # introduce the epsilon randomness (actually default of requires grad is already false, anyway ...)
@@ -223,9 +220,6 @@ class VAE(nn.Module):
             # Use this instead if take init cell state as empty: (which is the first attempt)
             decoder_cell_init = torch.zeros(1, x.size(0), self.lstm_num_hidden).to(self.device)
 
-
-
-
             # feed this new z to the LSTM decoder to get all the hidden states 
             # Am I right to feeed z to initial hidden states (instead of cell states?)
             h_N_packed, (_, _)  = self.LSTM_decoder(packed_embedded, (decoder_hidden_init, decoder_cell_init))
@@ -242,11 +236,8 @@ class VAE(nn.Module):
             else:   # use concat with unsqueeze. Finally it will become (k, batch, sent_len, vocabsize)
                 decoder_output = torch.cat((decoder_output, torch.unsqueeze(self.LSTM_output(h_N_unpacked), dim=0)),dim=0)
 
-
         # print('decoder_output size', decoder_output.size())
         # print('KL_loss', KL_loss)
-
-
 
         return decoder_output, KL_loss
 
