@@ -175,8 +175,8 @@ def train(config):
           t_match.append(t_tmp_match)
           t_length.append(t_target.shape[1])
 
-        t_nll = sum(t_perp)
-        t_perplexity = np.exp(t_nll)
+        t_nll = sum(t_perp) / 500 * 39832
+        t_perplexity = np.exp(sum(t_perp) / sum(t_length))
         t_accuracy = sum(t_match) / sum(t_length)
         
         for val_sen in val_data:
@@ -193,7 +193,7 @@ def train(config):
           length.append(val_target.shape[1])
 
         nll = sum(perp)
-        perplexity = np.exp(nll)
+        perplexity = np.exp(nll / sum(length))
         accuracy = sum(match) / sum(length)
 
         if perplexity < best_perp:
@@ -249,7 +249,7 @@ def train(config):
     length.append(test_target.shape[1])
   
   test_nll = sum(perp)
-  test_perplexity = np.exp(test_nll)
+  test_perplexity = np.exp(test_nll / sum(length))
   test_accuracy = sum(match) / sum(length)
   
   print('Test Perplexity on the best model is: {:3f}'.format(test_perplexity))
