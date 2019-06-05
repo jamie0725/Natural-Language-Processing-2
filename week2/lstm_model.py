@@ -14,16 +14,15 @@ class LSTMLM(nn.Module):
                                       padding_idx=1)
 
         # layers
-        self.model = nn.LSTM(input_size=lstm_num_hidden, 
+        self.model = nn.LSTM(input_size=lstm_num_hidden,
                              hidden_size=lstm_num_hidden,
-                             num_layers=lstm_num_layers, 
+                             num_layers=lstm_num_layers,
                              bias=True,
                              dropout=dropout,
                              batch_first=True)
         self.linear = nn.Linear(lstm_num_hidden, vocabulary_size)
 
         self.to(device)
-
 
     def forward(self, x, h, c):
         embed = self.embedding(x)
